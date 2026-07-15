@@ -64,14 +64,16 @@ test('calculates the proven single-unit layout and renders nonblank WebGL', asyn
   expect(pageErrors).toEqual([])
 })
 
-test('switches to plutonium assets without changing the valid topology', async ({ page }) => {
+test('switches to the feasible plutonium layout and assets', async ({ page }) => {
   await page.goto('/')
   await waitForSingleResult(page)
   await page.locator('input[value="plutonium-heat"]').evaluate((input: HTMLInputElement) => input.click())
   await page.waitForFunction(() => document.querySelector('.material-section img')?.getAttribute('src')?.includes('plutonium'))
+  await waitForPrimaryCount(page, '88')
 
-  await expect(page.locator('.material-line strong')).toHaveText(['110', '14', '1'])
-  await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
+  await expect(page.locator('.material-line strong')).toHaveText(['88', '36', '1'])
+  await expect(page.locator('.topbar-status .arco-tag')).toContainText('可行方案')
+  await expect(page.locator('.metrics-strip')).toContainText('33–36')
 
   const visibilitySwitches = page.locator('.switch-line .arco-switch')
   await visibilitySwitches.nth(0).click()

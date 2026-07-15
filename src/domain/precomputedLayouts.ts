@@ -3,21 +3,23 @@ import { CELL, type SolveOutcome, type StructureRequest, type StructureResult } 
 import { createDeviceMask, getBlockDimensions, getVolume, normalizeRequest } from './grid'
 import { validateStructure } from './validation'
 
-export function createProvenLayout(input: StructureRequest): SolveOutcome | null {
+export function createPrecomputedLayout(input: StructureRequest): SolveOutcome | null {
   const startedAt = performance.now()
   const request = normalizeRequest(input)
-  const scenario = SCENARIOS[request.scenario]
-  const separatorIndices = scenario.provenSeparatorIndices[request.mode]
-  if (!separatorIndices) return null
-  const provenOptimalSeparatorCount = scenario.provenOptimalSeparatorCounts[request.mode]
-  if (separatorIndices.length !== provenOptimalSeparatorCount) {
-    return { ok: false, status: 'failed', message: '黄金布局坐标数量与已证明最优数量不一致' }
+  const layout = SCENARIOS[request.scenario].layouts[request.mode]
+  if (!layout) return null
+  const separatorCount = layout.separatorIndices.length
+  if (layout.lowerBound > separatorCount) {
+    return { ok: false, status: 'failed', message: '预计算布局下界高于隔离材料数量' }
+  }
+  if (layout.status === 'optimal' && layout.lowerBound !== separatorCount) {
+    return { ok: false, status: 'failed', message: '最优布局的上下界不一致' }
   }
 
   const blocks = getBlockDimensions(request.units)
   const cells = new Uint8Array(getVolume(blocks))
   cells.fill(CELL.primary)
-  for (const index of separatorIndices) cells[index] = CELL.separator
+  for (const index of layout.separatorIndices) cells[index] = CELL.separator
 
   const deviceMask = createDeviceMask(request.units, blocks)
   let deviceCount = 0
@@ -27,7 +29,6 @@ export function createProvenLayout(input: StructureRequest): SolveOutcome | null
     deviceCount += 1
   }
 
-  const separatorCount = separatorIndices.length
   const result: StructureResult = {
     request,
     blocks,
@@ -36,15 +37,15 @@ export function createProvenLayout(input: StructureRequest): SolveOutcome | null
     separatorCount,
     deviceCount,
     solver: {
-      status: 'optimal',
-      lowerBound: separatorCount,
+      status: layout.status,
+      lowerBound: layout.lowerBound,
       upperBound: separatorCount,
       durationMs: performance.now() - startedAt,
     },
   }
   const report = validateStructure(result)
   if (!report.valid) {
-    return { ok: false, status: 'failed', message: `黄金布局复核失败：${report.errors.join('；')}` }
+    return { ok: false, status: 'failed', message: `预计算布局复核失败：${report.errors.join('；')}` }
   }
   return { ok: true, result }
 }

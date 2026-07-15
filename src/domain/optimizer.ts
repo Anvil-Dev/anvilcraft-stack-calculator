@@ -36,32 +36,43 @@ export function buildOptimizationModel(input: StructureRequest): OptimizationMod
 
   const objectiveTerms: string[] = []
   for (const name of variableNames.values()) objectiveTerms.push(name)
-  const provenOptimalSeparatorCount = SCENARIOS[request.scenario].provenOptimalSeparatorCounts[request.mode]
+  const scenario = SCENARIOS[request.scenario]
+  const knownLayout = scenario.layouts[request.mode]
 
   const constraints: string[] = []
   let constraintIndex = 0
   for (const [index, variableName] of variableNames) {
     const position = fromIndex(index, blocks)
-    let fixedSafeNeighbors = 0
     const materialNeighbors: string[] = []
     for (const offset of NEIGHBOR_OFFSETS) {
       const neighbor = resolveNeighborPosition(position, offset, blocks, request.mode)
-      if (!neighbor) {
-        fixedSafeNeighbors += 1
-        continue
-      }
+      if (!neighbor) continue
       const neighborName = variableNames.get(toIndex(neighbor, blocks))
       if (neighborName) materialNeighbors.push(neighborName)
-      else fixedSafeNeighbors += 1
     }
-    const requiredSafeNeighbors = 2 - fixedSafeNeighbors
-    if (requiredSafeNeighbors <= 0) continue
 
-    const terms = [requiredSafeNeighbors === 1 ? variableName : `2 ${variableName}`, ...materialNeighbors]
-    constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSafeNeighbors}`)
+    if (scenario.ruleId === 'five-same-face-neighbors-v1') {
+      const fixedSafeNeighbors = NEIGHBOR_OFFSETS.length - materialNeighbors.length
+      const requiredSafeNeighbors = 2 - fixedSafeNeighbors
+      if (requiredSafeNeighbors <= 0) continue
+      const terms = [requiredSafeNeighbors === 1 ? variableName : `2 ${variableName}`, ...materialNeighbors]
+      constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSafeNeighbors}`)
+      constraintIndex += 1
+      continue
+    }
+
+    const requiredSeparatorNeighbors = Math.max(0, Math.ceil((materialNeighbors.length - 2) / 2))
+    if (requiredSeparatorNeighbors <= 0) continue
+    const terms = [requiredSeparatorNeighbors === 1 ? variableName : `${requiredSeparatorNeighbors} ${variableName}`, ...materialNeighbors]
+    constraints.push(` plutonium_decay_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSeparatorNeighbors}`)
     constraintIndex += 1
   }
-  constraints.push(` proven_optimum: ${objectiveTerms.join(' + ')} = ${provenOptimalSeparatorCount}`)
+  if (knownLayout) {
+    const knownSeparatorCount = knownLayout.separatorIndices.length
+    constraints.push(knownLayout.status === 'optimal'
+      ? ` proven_optimum: ${objectiveTerms.join(' + ')} = ${knownSeparatorCount}`
+      : ` known_upper_bound: ${objectiveTerms.join(' + ')} <= ${knownSeparatorCount}`)
+  }
 
   const binaryNames = [...variableNames.values()]
   const binaryLines: string[] = []
@@ -120,8 +131,9 @@ export function solveWithHighs(highs: HighsInstance, input: StructureRequest, ti
       }
     }
 
-    const provenOptimalSeparatorCount = SCENARIOS[model.request.scenario].provenOptimalSeparatorCounts[model.request.mode]
-    const optimal = solution.Status === 'Optimal' || separatorCount === provenOptimalSeparatorCount
+    const knownLayout = SCENARIOS[model.request.scenario].layouts[model.request.mode]
+    const optimal = solution.Status === 'Optimal'
+      || (knownLayout !== undefined && separatorCount === knownLayout.lowerBound)
     const result: StructureResult = {
       request: model.request,
       blocks: model.blocks,
@@ -131,7 +143,7 @@ export function solveWithHighs(highs: HighsInstance, input: StructureRequest, ti
       deviceCount,
       solver: {
         status: optimal ? 'optimal' : 'feasible',
-        lowerBound: optimal ? separatorCount : provenOptimalSeparatorCount,
+        lowerBound: optimal ? separatorCount : knownLayout?.lowerBound ?? 0,
         upperBound: separatorCount,
         durationMs: performance.now() - startedAt,
       },

@@ -1,3 +1,4 @@
+import { SCENARIOS } from '../data/scenarios'
 import { CELL, type Position, type StructureResult } from './types'
 import { createDeviceMask, getCell, getVolume, NEIGHBOR_OFFSETS, resolveNeighborPosition, toIndex } from './grid'
 
@@ -33,19 +34,25 @@ export function validateStructure(result: StructureResult): ValidationReport {
   if (deviceCount !== result.deviceCount) errors.push('设备统计不一致')
   if (primaryCount + separatorCount + deviceCount !== expectedVolume) errors.push('方块总数不守恒')
 
+  const ruleId = SCENARIOS[result.request.scenario].ruleId
   for (let y = 0; y < result.blocks.y; y += 1) {
     for (let z = 0; z < result.blocks.z; z += 1) {
       for (let x = 0; x < result.blocks.x; x += 1) {
         const position = { x, y, z }
         if (getCell(result.cells, position, result.blocks) !== CELL.primary) continue
-        const primaryNeighborCount = NEIGHBOR_OFFSETS.reduce((count, offset) => {
+        let primaryNeighborCount = 0
+        let separatorNeighborCount = 0
+        for (const offset of NEIGHBOR_OFFSETS) {
           const neighbor = resolveNeighborPosition(position, offset, result.blocks, result.request.mode)
-          return count + Number(
-            neighbor
-            && result.cells[toIndex(neighbor, result.blocks)] === CELL.primary,
-          )
-        }, 0)
-        if (primaryNeighborCount >= 5) decayPositions.push(position)
+          if (!neighbor) continue
+          const neighborCell = result.cells[toIndex(neighbor, result.blocks)]
+          if (neighborCell === CELL.primary) primaryNeighborCount += 1
+          else if (neighborCell === CELL.separator) separatorNeighborCount += 1
+        }
+        const decays = ruleId === 'five-same-face-neighbors-v1'
+          ? primaryNeighborCount >= 5
+          : primaryNeighborCount - separatorNeighborCount > 2
+        if (decays) decayPositions.push(position)
       }
     }
   }

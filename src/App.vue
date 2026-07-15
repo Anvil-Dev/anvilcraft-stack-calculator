@@ -40,6 +40,11 @@ const statusText = computed(() => {
   if (!result.value) return '等待计算'
   return result.value.solver.status === 'optimal' ? '已证明最优' : '可行方案'
 })
+const separatorBoundsText = computed(() => {
+  if (!result.value) return '—'
+  const { lowerBound, upperBound } = result.value.solver
+  return lowerBound === upperBound ? `${lowerBound}` : `${lowerBound}–${upperBound}`
+})
 onMounted(() => runCalculation())
 
 watch(mode, () => {
@@ -136,7 +141,7 @@ async function toggleFullscreen(): Promise<void> {
       </div>
       <div class="topbar-status" aria-live="polite">
         <span class="version-label">{{ scenarioDefinition.minecraftVersion }} / {{ scenarioDefinition.modVersion }}</span>
-        <a-tag :color="solverError ? 'red' : solving ? 'arcoblue' : 'green'" size="small">{{ statusText }}</a-tag>
+        <a-tag :color="solverError ? 'red' : solving ? 'arcoblue' : result?.solver.status === 'feasible' ? 'orange' : 'green'" size="small">{{ statusText }}</a-tag>
       </div>
     </header>
 
@@ -206,7 +211,7 @@ async function toggleFullscreen(): Promise<void> {
           <div><span>单元尺寸</span><strong>{{ result ? `${result.blocks.x} × ${result.blocks.y} × ${result.blocks.z}` : '—' }}</strong></div>
           <div><span>复制方向</span><strong>{{ replicationAxisLabel }}</strong></div>
           <div><span>隔离材料占比</span><strong>{{ result ? `${separatorRatio.toFixed(2)}%` : '—' }}</strong></div>
-          <div><span>求解耗时</span><strong>{{ result ? `${Math.round(result.solver.durationMs)} ms` : '—' }}</strong></div>
+          <div><span>隔离材料界限</span><strong>{{ separatorBoundsText }}</strong></div>
         </div>
 
         <div ref="previewShell" class="preview-shell">

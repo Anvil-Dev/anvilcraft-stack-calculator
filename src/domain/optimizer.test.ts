@@ -23,6 +23,18 @@ describe('HiGHS structure optimizer', () => {
     expect(model.variableNames.size).toBe(124)
   })
 
+  it('builds the plutonium-minus-lead constraint without counting the collector', () => {
+    const model = buildOptimizationModel({
+      scenario: 'plutonium-heat',
+      mode: 'single',
+      units: { x: 1, y: 1, z: 1 },
+    })
+    expect(model.lp).toContain('known_upper_bound:')
+    expect(model.lp).toMatch(/known_upper_bound: .* <= 36/)
+    expect(model.lp).toContain('2 x_57 + x_56 + x_58 + x_32 + x_82 + x_52 >= 2')
+    expect(model.lp).not.toContain('x_62')
+  })
+
   it('proves periodic unit optima for planar and volumetric modes', () => {
     for (const [mode, separatorCount] of [['planar', 31], ['volumetric', 34]] as const) {
       const outcome = solveWithHighs(highs, {
