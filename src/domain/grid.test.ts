@@ -41,9 +41,14 @@ describe('independent validation', () => {
     const blocks = getBlockDimensions(request.units)
     const cells = new Uint8Array(125)
     const separators = [
-      { x: 2, y: 1, z: 1 }, { x: 2, y: 1, z: 3 },
-      { x: 2, y: 3, z: 1 }, { x: 2, y: 3, z: 3 },
-      { x: 1, y: 2, z: 2 }, { x: 3, y: 2, z: 2 },
+      { x: 2, y: 0, z: 2 },
+      { x: 1, y: 1, z: 1 }, { x: 3, y: 1, z: 1 },
+      { x: 1, y: 1, z: 3 }, { x: 3, y: 1, z: 3 },
+      { x: 2, y: 2, z: 0 }, { x: 0, y: 2, z: 2 },
+      { x: 4, y: 2, z: 2 }, { x: 2, y: 2, z: 4 },
+      { x: 1, y: 3, z: 1 }, { x: 3, y: 3, z: 1 },
+      { x: 1, y: 3, z: 3 }, { x: 3, y: 3, z: 3 },
+      { x: 2, y: 4, z: 2 },
     ]
     for (const position of separators) cells[toIndex(position, blocks)] = CELL.separator
     cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
@@ -52,10 +57,10 @@ describe('independent validation', () => {
       request,
       blocks,
       cells,
-      primaryCount: 118,
-      separatorCount: 6,
+      primaryCount: 110,
+      separatorCount: 14,
       deviceCount: 1,
-      solver: { status: 'optimal', lowerBound: 6, upperBound: 6, durationMs: 0 },
+      solver: { status: 'optimal', lowerBound: 14, upperBound: 14, durationMs: 0 },
     }
     expect(validateStructure(result)).toEqual({ valid: true, errors: [], decayPositions: [] })
   })
@@ -76,6 +81,34 @@ describe('independent validation', () => {
     }
     const report = validateStructure(result)
     expect(report.valid).toBe(false)
-    expect(report.decayPositions).toHaveLength(20)
+    expect(report.decayPositions).toHaveLength(80)
+  })
+
+  it('rejects a primary block with exactly five primary face neighbors', () => {
+    const request = { scenario: 'void-energy', mode: 'single', units: { x: 1, y: 1, z: 1 } } as const
+    const blocks = getBlockDimensions(request.units)
+    const cells = new Uint8Array(125)
+    cells.fill(CELL.separator)
+    const target = { x: 2, y: 2, z: 1 }
+    const primaryPositions = [
+      target,
+      { x: 1, y: 2, z: 1 }, { x: 3, y: 2, z: 1 },
+      { x: 2, y: 1, z: 1 }, { x: 2, y: 3, z: 1 },
+      { x: 2, y: 2, z: 0 },
+    ]
+    for (const position of primaryPositions) cells[toIndex(position, blocks)] = CELL.primary
+    cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
+    const result: StructureResult = {
+      request,
+      blocks,
+      cells,
+      primaryCount: primaryPositions.length,
+      separatorCount: cells.length - primaryPositions.length - 1,
+      deviceCount: 1,
+      solver: { status: 'feasible', lowerBound: 0, upperBound: 118, durationMs: 0 },
+    }
+
+    const report = validateStructure(result)
+    expect(report.decayPositions).toContainEqual(target)
   })
 })

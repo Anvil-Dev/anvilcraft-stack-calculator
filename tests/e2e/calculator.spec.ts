@@ -1,7 +1,7 @@
 import { expect, test, type Page } from 'playwright/test'
 
 async function waitForSingleResult(page: Page): Promise<void> {
-  await page.waitForFunction(() => document.querySelector('.material-line strong')?.textContent?.trim() === '118')
+  await page.waitForFunction(() => document.querySelector('.material-line strong')?.textContent?.trim() === '110')
 }
 
 test('calculates the proven single-unit layout and renders nonblank WebGL', async ({ page }) => {
@@ -11,7 +11,7 @@ test('calculates the proven single-unit layout and renders nonblank WebGL', asyn
   await waitForSingleResult(page)
 
   await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
-  await expect(page.locator('.material-line strong')).toHaveText(['118', '6', '1'])
+  await expect(page.locator('.material-line strong')).toHaveText(['110', '14', '1'])
   await expect(page.locator('[role="gridcell"]')).toHaveCount(25)
 
   const pixels = await page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
@@ -40,7 +40,7 @@ test('switches to plutonium assets without changing the valid topology', async (
   await page.locator('input[value="plutonium-heat"]').evaluate((input: HTMLInputElement) => input.click())
   await page.waitForFunction(() => document.querySelector('.material-section img')?.getAttribute('src')?.includes('plutonium'))
 
-  await expect(page.locator('.material-line strong')).toHaveText(['118', '6', '1'])
+  await expect(page.locator('.material-line strong')).toHaveText(['110', '14', '1'])
   await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
 })
 

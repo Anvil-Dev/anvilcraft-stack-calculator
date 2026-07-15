@@ -4,12 +4,13 @@ import {
   AmbientLight,
   Color,
   DirectionalLight,
-  DoubleSide,
   DynamicDrawUsage,
+  FrontSide,
   GridHelper,
   Group,
   InstancedMesh,
   Matrix4,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   NearestFilter,
   PerspectiveCamera,
@@ -25,7 +26,7 @@ import {
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CELL, type Axis, type CellCode, type ScenarioId, type StructureResult } from '../domain/types'
 import { fromIndex } from '../domain/grid'
-import { SCENARIO_MODELS, TEXTURE_URLS } from '../data/visualAssets'
+import { CUTOUT_TEXTURES, SCENARIO_MODELS, TEXTURE_URLS } from '../data/visualAssets'
 import { parseMinecraftModel, type ParsedModelPart } from '../rendering/minecraftModel'
 
 interface Props {
@@ -42,7 +43,7 @@ interface Props {
 
 interface RenderPart {
   geometry: ParsedModelPart['geometry']
-  material: MeshStandardMaterial
+  material: Material
 }
 
 interface ScenarioTemplates {
@@ -170,19 +171,23 @@ async function createRenderParts(model: unknown, originMode: 'block' | 'centered
   const parsedParts = parseMinecraftModel(model, { originMode })
   return Promise.all(parsedParts.map(async (part) => {
     const texture = await loadTexture(part.texture)
-    const hasAlpha = part.cutout || part.texture.includes('void_') || part.texture.includes('negative_')
-    const material = new MeshStandardMaterial({
+    const cutout = part.cutout || CUTOUT_TEXTURES.has(part.texture)
+    const common = {
       map: texture,
-      alphaTest: hasAlpha ? 0.08 : 0,
-      transparent: hasAlpha,
-      side: DoubleSide,
-      roughness: 0.76,
-      metalness: part.emissive ? 0.08 : 0.16,
-      emissive: part.emissive ? new Color('#ffffff') : new Color('#000000'),
-      emissiveMap: part.emissive ? texture : null,
-      emissiveIntensity: part.emissive ? 1.25 : 0,
-    })
-    material.userData.baseTransparent = hasAlpha
+      alphaTest: cutout ? 0.08 : 0,
+      side: FrontSide,
+    }
+    const material = part.shaded
+      ? new MeshStandardMaterial({
+          ...common,
+          roughness: 0.76,
+          metalness: part.emissive ? 0.08 : 0.16,
+          emissive: part.emissive ? new Color('#ffffff') : new Color('#000000'),
+          emissiveMap: part.emissive ? texture : null,
+          emissiveIntensity: part.emissive ? 1.25 : 0,
+        })
+      : new MeshBasicMaterial(common)
+    material.userData.baseTransparent = false
     return { geometry: part.geometry, material }
   }))
 }

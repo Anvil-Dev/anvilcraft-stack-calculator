@@ -21,7 +21,7 @@ describe('HiGHS structure optimizer', () => {
     expect(model.variableNames.size).toBe(248)
   })
 
-  it('proves the 1 x 1 x 1 optimum is six separators', () => {
+  it('proves the 1 x 1 x 1 optimum is fourteen separators', () => {
     const outcome = solveWithHighs(highs, {
       scenario: 'void-energy',
       mode: 'single',
@@ -30,8 +30,8 @@ describe('HiGHS structure optimizer', () => {
     expect(outcome.ok).toBe(true)
     if (!outcome.ok) return
     expect(outcome.result.solver.status).toBe('optimal')
-    expect(outcome.result.separatorCount).toBe(6)
-    expect(outcome.result.primaryCount).toBe(118)
+    expect(outcome.result.separatorCount).toBe(14)
+    expect(outcome.result.primaryCount).toBe(110)
     expect(outcome.result.deviceCount).toBe(1)
   })
 

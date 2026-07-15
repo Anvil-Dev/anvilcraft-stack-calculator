@@ -7,7 +7,7 @@ export interface ScenarioDefinition {
   primaryName: string
   separatorName: string
   deviceName: string
-  ruleId: 'six-face-enclosure-v1'
+  ruleId: 'five-same-face-neighbors-v1'
   minecraftVersion: string
   modVersion: string
   sourceRevision: string
@@ -22,7 +22,7 @@ export const SCENARIOS: Record<ScenarioId, ScenarioDefinition> = {
     primaryName: '虚空物质块',
     separatorName: '负物质块',
     deviceName: '虚空能收集器',
-    ruleId: 'six-face-enclosure-v1',
+    ruleId: 'five-same-face-neighbors-v1',
     minecraftVersion: '1.21.1',
     modVersion: '1.6-dev',
     sourceRevision: 'dev/1.21/1.6',
@@ -35,7 +35,7 @@ export const SCENARIOS: Record<ScenarioId, ScenarioDefinition> = {
     primaryName: '钚块',
     separatorName: '铅块',
     deviceName: '集热器',
-    ruleId: 'six-face-enclosure-v1',
+    ruleId: 'five-same-face-neighbors-v1',
     minecraftVersion: '1.21.1',
     modVersion: '1.6-dev',
     sourceRevision: 'dev/1.21/1.6',

@@ -38,12 +38,14 @@ export function validateStructure(result: StructureResult): ValidationReport {
       for (let x = 0; x < result.blocks.x; x += 1) {
         const position = { x, y, z }
         if (getCell(result.cells, position, result.blocks) !== CELL.primary) continue
-        const fullyEnclosed = NEIGHBOR_OFFSETS.every((offset) => {
+        const primaryNeighborCount = NEIGHBOR_OFFSETS.reduce((count, offset) => {
           const neighbor = { x: x + offset.x, y: y + offset.y, z: z + offset.z }
-          return isInside(neighbor, result.blocks)
-            && result.cells[toIndex(neighbor, result.blocks)] === CELL.primary
-        })
-        if (fullyEnclosed) decayPositions.push(position)
+          return count + Number(
+            isInside(neighbor, result.blocks)
+            && result.cells[toIndex(neighbor, result.blocks)] === CELL.primary,
+          )
+        }, 0)
+        if (primaryNeighborCount >= 5) decayPositions.push(position)
       }
     }
   }

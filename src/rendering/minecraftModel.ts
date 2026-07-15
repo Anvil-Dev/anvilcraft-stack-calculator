@@ -6,6 +6,7 @@ interface ModelFace {
   texture: string
   uv?: [number, number, number, number]
   rotation?: number
+  cullface?: FaceName
 }
 
 interface ModelElementRotation {
@@ -19,12 +20,14 @@ interface ModelElement {
   to: [number, number, number]
   faces: Partial<Record<FaceName, ModelFace>>
   rotation?: ModelElementRotation
+  shade?: boolean
   light_emission?: number
 }
 
 export interface MinecraftModelSource {
   parent?: string
   render_type?: string
+  ambientocclusion?: boolean
   textures?: Record<string, string>
   elements?: ModelElement[]
 }
@@ -33,6 +36,9 @@ export interface ParsedModelPart {
   geometry: BufferGeometry
   texture: string
   emissive: boolean
+  shaded: boolean
+  inverted: boolean
+  ambientOcclusion: boolean
   cutout: boolean
 }
 
@@ -46,13 +52,21 @@ interface GeometryAccumulator {
   indices: number[]
 }
 
+interface AccumulatorEntry {
+  geometry: GeometryAccumulator
+  texture: string
+  emissive: boolean
+  shaded: boolean
+  inverted: boolean
+}
+
 const FACE_NAMES: readonly FaceName[] = ['north', 'south', 'east', 'west', 'up', 'down']
 
 export function parseMinecraftModel(input: unknown, options: ParseModelOptions = {}): ParsedModelPart[] {
   const model = assertModel(input)
   const originMode = options.originMode ?? 'block'
   const elements = model.elements ?? createParentElements(model.parent)
-  const accumulators = new Map<string, GeometryAccumulator>()
+  const accumulators = new Map<string, AccumulatorEntry>()
 
   for (const element of elements) {
     validateElement(element)
@@ -61,30 +75,39 @@ export function parseMinecraftModel(input: unknown, options: ParseModelOptions =
       if (!face) continue
       const texture = resolveTexture(face.texture, model.textures ?? {})
       const emissive = (element.light_emission ?? 0) > 0
-      const key = `${texture}|${emissive ? 'emissive' : 'lit'}`
-      let accumulator = accumulators.get(key)
-      if (!accumulator) {
-        accumulator = { positions: [], uvs: [], indices: [] }
-        accumulators.set(key, accumulator)
+      const shaded = element.shade !== false
+      const inverted = element.from.some((value, index) => value > (element.to[index] ?? value))
+      const key = `${texture}|${emissive ? 'emissive' : 'lit'}|${shaded ? 'shaded' : 'unshaded'}|${inverted ? 'inverted' : 'normal'}`
+      let entry = accumulators.get(key)
+      if (!entry) {
+        entry = {
+          geometry: { positions: [], uvs: [], indices: [] },
+          texture,
+          emissive,
+          shaded,
+          inverted,
+        }
+        accumulators.set(key, entry)
       }
-      appendFace(accumulator, element, faceName, face, originMode)
+      appendFace(entry.geometry, element, faceName, face, originMode)
     }
   }
 
-  return [...accumulators.entries()].map(([key, accumulator]) => {
-    const [texture, lightMode] = key.split('|')
-    if (!texture) throw new Error('模型纹理引用为空')
+  return [...accumulators.values()].map((entry) => {
     const geometry = new BufferGeometry()
-    geometry.setAttribute('position', new Float32BufferAttribute(accumulator.positions, 3))
-    geometry.setAttribute('uv', new Float32BufferAttribute(accumulator.uvs, 2))
-    geometry.setIndex(accumulator.indices)
+    geometry.setAttribute('position', new Float32BufferAttribute(entry.geometry.positions, 3))
+    geometry.setAttribute('uv', new Float32BufferAttribute(entry.geometry.uvs, 2))
+    geometry.setIndex(entry.geometry.indices)
     geometry.computeVertexNormals()
     geometry.computeBoundingBox()
     geometry.computeBoundingSphere()
     return {
       geometry,
-      texture,
-      emissive: lightMode === 'emissive',
+      texture: entry.texture,
+      emissive: entry.emissive,
+      shaded: entry.shaded,
+      inverted: entry.inverted,
+      ambientOcclusion: model.ambientocclusion !== false,
       cutout: model.render_type === 'minecraft:cutout' || model.render_type === 'cutout',
     }
   })

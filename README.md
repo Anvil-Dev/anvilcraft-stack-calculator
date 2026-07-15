@@ -1,4 +1,10 @@
+<div align="center">
+
+<img src="public/icon.png" style="height: 256px; width: 256px" alt="icon">
+
 # AnvilCraft Stack Calculator
+
+</div>
 
 《铁砧工艺》方块最密堆积计算器。它为以下结构计算满足六面衰变规则的布局，并尽量减少昂贵的隔离材料：
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import heatCollectorHead from '../assets/anvilcraft/models/block/heat_collector_head.json'
 import negativeMatterBlock from '../assets/anvilcraft/models/block/negative_matter_block.json'
 import plutoniumBlock from '../assets/anvilcraft/models/block/plutonium_block.json'
+import voidEnergyCollectorHead from '../assets/anvilcraft/models/block/void_energy_collector_head.json'
 import voidMatterBlock from '../assets/anvilcraft/models/block/void_matter_block.json'
 import { parseMinecraftModel } from './minecraftModel'
 
@@ -23,6 +25,29 @@ describe('Minecraft model parser', () => {
 
     const negativeParts = parseMinecraftModel(negativeMatterBlock)
     expect(negativeParts.some((part) => part.emissive)).toBe(true)
+  })
+
+  it('preserves unshaded and inverted negative-space elements', () => {
+    const negativeParts = parseMinecraftModel(negativeMatterBlock)
+    expect(negativeParts).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        texture: 'anvilcraft:block/negative_matter_block',
+        shaded: false,
+        inverted: false,
+        ambientOcclusion: false,
+      }),
+      expect.objectContaining({
+        texture: 'anvilcraft:block/negative_matter_block_outline',
+        shaded: false,
+        inverted: true,
+        emissive: true,
+      }),
+    ]))
+
+    expect(parseMinecraftModel(heatCollectorHead, { originMode: 'centered' })
+      .every((part) => !part.shaded && !part.inverted)).toBe(true)
+    expect(parseMinecraftModel(voidEnergyCollectorHead, { originMode: 'centered' })
+      .some((part) => part.inverted)).toBe(true)
   })
 
   it('rejects an unsupported implicit parent', () => {

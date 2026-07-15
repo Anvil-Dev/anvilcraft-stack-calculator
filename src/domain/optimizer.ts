@@ -45,15 +45,22 @@ export function buildOptimizationModel(input: StructureRequest): OptimizationMod
       y: position.y + offset.y,
       z: position.z + offset.z,
     }))
-    if (neighbors.some((neighbor) => !isInside(neighbor, blocks))) continue
-    if (neighbors.some((neighbor) => deviceMask[toIndex(neighbor, blocks)] === 1)) continue
-
-    const terms = [variableName]
+    let fixedSafeNeighbors = 0
+    const materialNeighbors: string[] = []
     for (const neighbor of neighbors) {
+      if (!isInside(neighbor, blocks)) {
+        fixedSafeNeighbors += 1
+        continue
+      }
       const neighborName = variableNames.get(toIndex(neighbor, blocks))
-      if (neighborName) terms.push(neighborName)
+      if (neighborName) materialNeighbors.push(neighborName)
+      else fixedSafeNeighbors += 1
     }
-    constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= 1`)
+    const requiredSafeNeighbors = 2 - fixedSafeNeighbors
+    if (requiredSafeNeighbors <= 0) continue
+
+    const terms = [`2 ${variableName}`, ...materialNeighbors]
+    constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSafeNeighbors}`)
     constraintIndex += 1
   }
 

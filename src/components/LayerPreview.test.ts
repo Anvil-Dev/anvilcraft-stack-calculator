@@ -9,19 +9,24 @@ function createGoldenResult(): StructureResult {
   const blocks = getBlockDimensions(request.units)
   const cells = new Uint8Array(125)
   for (const position of [
-    { x: 2, y: 1, z: 1 }, { x: 2, y: 1, z: 3 },
-    { x: 2, y: 3, z: 1 }, { x: 2, y: 3, z: 3 },
-    { x: 1, y: 2, z: 2 }, { x: 3, y: 2, z: 2 },
+    { x: 2, y: 0, z: 2 },
+    { x: 1, y: 1, z: 1 }, { x: 3, y: 1, z: 1 },
+    { x: 1, y: 1, z: 3 }, { x: 3, y: 1, z: 3 },
+    { x: 2, y: 2, z: 0 }, { x: 0, y: 2, z: 2 },
+    { x: 4, y: 2, z: 2 }, { x: 2, y: 2, z: 4 },
+    { x: 1, y: 3, z: 1 }, { x: 3, y: 3, z: 1 },
+    { x: 1, y: 3, z: 3 }, { x: 3, y: 3, z: 3 },
+    { x: 2, y: 4, z: 2 },
   ]) cells[toIndex(position, blocks)] = CELL.separator
   cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
   return {
     request,
     blocks,
     cells,
-    primaryCount: 118,
-    separatorCount: 6,
+    primaryCount: 110,
+    separatorCount: 14,
     deviceCount: 1,
-    solver: { status: 'optimal', lowerBound: 6, upperBound: 6, durationMs: 0 },
+    solver: { status: 'optimal', lowerBound: 14, upperBound: 14, durationMs: 0 },
   }
 }
 
@@ -49,8 +54,8 @@ describe('LayerPreview', () => {
     })
 
     expect(wrapper.findAll('[role="gridcell"]')).toHaveLength(25)
-    expect(wrapper.text()).toContain('虚空物质块 22')
-    expect(wrapper.text()).toContain('负物质块 2')
+    expect(wrapper.text()).toContain('虚空物质块 20')
+    expect(wrapper.text()).toContain('负物质块 4')
     expect(wrapper.text()).toContain('虚空能收集器 1')
 
     await wrapper.setProps({ axis: 'z', layerIndex: 0 })

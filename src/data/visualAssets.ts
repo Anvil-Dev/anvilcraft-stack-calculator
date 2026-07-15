@@ -43,6 +43,13 @@ export const TEXTURE_URLS: Record<string, string> = {
   'anvilcraft:block/void_matter_block_inner_2': voidMatterInner2,
 }
 
+export const CUTOUT_TEXTURES = new Set([
+  'anvilcraft:block/heat_collector_head',
+  'anvilcraft:block/heat_collector_side',
+  'anvilcraft:block/void_energy_collector_head',
+  'anvilcraft:block/void_energy_collector_side',
+])
+
 export interface ScenarioModelAssets {
   primary: unknown
   separator: unknown
