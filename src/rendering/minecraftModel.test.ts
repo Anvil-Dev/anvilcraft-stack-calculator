@@ -50,6 +50,17 @@ describe('Minecraft model parser', () => {
       .some((part) => part.inverted)).toBe(true)
   })
 
+  it('maps Minecraft top-left UVs without vertically flipping unflipped textures', () => {
+    const heatParts = parseMinecraftModel(heatCollectorHead, { originMode: 'centered' })
+    const coreUvs = heatParts[0]?.geometry.getAttribute('uv')
+    expect(coreUvs ? Array.from(coreUvs.array.slice(0, 8)) : []).toEqual([
+      0, 0.5,
+      0, 0,
+      0.5, 0,
+      0.5, 0.5,
+    ])
+  })
+
   it('rejects an unsupported implicit parent', () => {
     expect(() => parseMinecraftModel({ parent: 'minecraft:block/unknown' })).toThrow('不支持')
   })

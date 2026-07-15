@@ -219,10 +219,10 @@ function getFaceVertices(
 function getFaceUvs(uv: [number, number, number, number], rotation: number): number[] {
   const [u1, v1, u2, v2] = uv.map((value) => value / 16) as [number, number, number, number]
   const corners = [
-    [u1, 1 - v2],
-    [u1, 1 - v1],
-    [u2, 1 - v1],
-    [u2, 1 - v2],
+    [u1, v2],
+    [u1, v1],
+    [u2, v1],
+    [u2, v2],
   ]
   const steps = ((rotation / 90) % 4 + 4) % 4
   const rotated = corners.map((_, index) => corners[(index - steps + 4) % 4] ?? corners[index])

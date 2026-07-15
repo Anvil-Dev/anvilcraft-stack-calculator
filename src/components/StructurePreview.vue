@@ -14,7 +14,6 @@ import {
   MeshStandardMaterial,
   NearestFilter,
   PerspectiveCamera,
-  Quaternion,
   Scene,
   SRGBColorSpace,
   Texture,
@@ -27,6 +26,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CELL, type Axis, type CellCode, type ScenarioId, type StructureResult } from '../domain/types'
 import { fromIndex } from '../domain/grid'
 import { CUTOUT_TEXTURES, SCENARIO_MODELS, TEXTURE_URLS } from '../data/visualAssets'
+import { composeCollectorHeadMatrix } from '../rendering/collectorAnimation'
 import { parseMinecraftModel, type ParsedModelPart } from '../rendering/minecraftModel'
 
 interface Props {
@@ -342,16 +342,11 @@ function animate(timestamp = performance.now()): void {
   frameId = requestAnimationFrame(animate)
   const elapsed = (timestamp - startedAt) / 1000
   const matrix = new Matrix4()
-  const quaternion = new Quaternion()
-  const scale = new Vector3(1, 1, 1)
   for (const mesh of animatedHeadMeshes) {
     for (let index = 0; index < animatedHeadPositions.length; index += 1) {
       const base = animatedHeadPositions[index]
       if (!base) continue
-      const position = base.clone()
-      position.y += 0.17 + Math.sin(elapsed * 1.6 + index * 0.4) * 0.035
-      quaternion.setFromAxisAngle(new Vector3(0, 1, 0), elapsed * 0.32 + index * 0.18)
-      matrix.compose(position, quaternion, scale)
+      composeCollectorHeadMatrix(matrix, base, elapsed, index)
       mesh.setMatrixAt(index, matrix)
     }
     mesh.instanceMatrix.needsUpdate = true

@@ -143,6 +143,7 @@ async function toggleFullscreen(): Promise<void> {
     <header class="topbar">
       <div class="brand-block">
         <span class="brand-mark" aria-hidden="true"></span>
+        <img class="brand-icon" src="/icon.png" alt="" aria-hidden="true" />
         <div>
           <h1>铁砧工艺 · 最密堆积</h1>
           <span>AnvilCraft Stack Calculator</span>

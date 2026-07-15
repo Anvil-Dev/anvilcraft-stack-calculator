@@ -10,6 +10,9 @@ test('calculates the proven single-unit layout and renders nonblank WebGL', asyn
   await page.goto('/')
   await waitForSingleResult(page)
 
+  const brandIcon = page.locator('.brand-icon')
+  await expect(brandIcon).toBeVisible()
+  expect(await brandIcon.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(1024)
   await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
   await expect(page.locator('.material-line strong')).toHaveText(['110', '14', '1'])
   await expect(page.locator('[role="gridcell"]')).toHaveCount(25)
@@ -65,6 +68,32 @@ test('switches to plutonium assets without changing the valid topology', async (
 
   await expect(page.locator('.material-line strong')).toHaveText(['110', '14', '1'])
   await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
+
+  const visibilitySwitches = page.locator('.switch-line .arco-switch')
+  await visibilitySwitches.nth(0).click()
+  await visibilitySwitches.nth(1).click()
+  const canvas = page.locator('canvas')
+  await canvas.hover()
+  await page.mouse.wheel(0, -4000)
+  await page.waitForTimeout(300)
+  const heatCollectorPixels = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const gl = element.getContext('webgl2') ?? element.getContext('webgl')
+    if (!gl) return { blueCore: 0, orangeFrame: 0 }
+    const data = new Uint8Array(element.width * element.height * 4)
+    gl.readPixels(0, 0, element.width, element.height, gl.RGBA, gl.UNSIGNED_BYTE, data)
+    let blueCore = 0
+    let orangeFrame = 0
+    for (let index = 0; index < data.length; index += 16) {
+      const red = data[index] ?? 0
+      const green = data[index + 1] ?? 0
+      const blue = data[index + 2] ?? 0
+      if (blue > red * 1.2 && blue > 120) blueCore += 1
+      if (red > 180 && green > 70 && green < 190 && blue < 160) orangeFrame += 1
+    }
+    return { blueCore, orangeFrame }
+  })
+  expect(heatCollectorPixels.blueCore).toBeGreaterThan(100)
+  expect(heatCollectorPixels.orangeFrame).toBeGreaterThan(100)
 })
 
 test('keeps the calculator within all target viewport widths', async ({ page }) => {
