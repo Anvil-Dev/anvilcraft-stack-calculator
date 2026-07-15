@@ -1,5 +1,5 @@
 import { CELL, type Position, type StructureResult } from './types'
-import { createDeviceMask, getCell, getVolume, isInside, NEIGHBOR_OFFSETS, toIndex } from './grid'
+import { createDeviceMask, getCell, getVolume, NEIGHBOR_OFFSETS, resolveNeighborPosition, toIndex } from './grid'
 
 export interface ValidationReport {
   valid: boolean
@@ -39,9 +39,9 @@ export function validateStructure(result: StructureResult): ValidationReport {
         const position = { x, y, z }
         if (getCell(result.cells, position, result.blocks) !== CELL.primary) continue
         const primaryNeighborCount = NEIGHBOR_OFFSETS.reduce((count, offset) => {
-          const neighbor = { x: x + offset.x, y: y + offset.y, z: z + offset.z }
+          const neighbor = resolveNeighborPosition(position, offset, result.blocks, result.request.mode)
           return count + Number(
-            isInside(neighbor, result.blocks)
+            neighbor
             && result.cells[toIndex(neighbor, result.blocks)] === CELL.primary,
           )
         }, 0)

@@ -10,16 +10,37 @@ beforeAll(async () => {
 })
 
 describe('HiGHS structure optimizer', () => {
-  it('builds constraints across a continuous multi-unit grid', () => {
+  it('builds a single periodic unit for planar mode', () => {
     const model = buildOptimizationModel({
       scenario: 'void-energy',
       mode: 'planar',
       units: { x: 2, y: 1, z: 1 },
     })
-    expect(model.blocks).toEqual({ x: 10, y: 5, z: 5 })
+    expect(model.blocks).toEqual({ x: 5, y: 5, z: 5 })
     expect(model.lp).toContain('cover_')
-    expect(model.variableNames.size).toBe(248)
+    expect(model.lp).toContain('proven_optimum:')
+    expect(model.lp).toMatch(/proven_optimum: .* = 31/)
+    expect(model.variableNames.size).toBe(124)
   })
+
+  it('proves periodic unit optima for planar and volumetric modes', () => {
+    for (const [mode, separatorCount] of [['planar', 31], ['volumetric', 34]] as const) {
+      const outcome = solveWithHighs(highs, {
+        scenario: 'void-energy',
+        mode,
+        units: { x: 9, y: 9, z: 9 },
+      })
+      expect(outcome.ok).toBe(true)
+      if (!outcome.ok) continue
+      expect(outcome.result.blocks).toEqual({ x: 5, y: 5, z: 5 })
+      expect(outcome.result.deviceCount).toBe(1)
+      expect(outcome.result.separatorCount).toBe(separatorCount)
+      expect(outcome.result.primaryCount).toBe(124 - separatorCount)
+      expect(outcome.result.solver.status).toBe('optimal')
+      expect(outcome.result.solver.lowerBound).toBe(separatorCount)
+      expect(outcome.result.solver.upperBound).toBe(separatorCount)
+    }
+  }, 30_000)
 
   it('proves the 1 x 1 x 1 optimum is fourteen separators', () => {
     const outcome = solveWithHighs(highs, {

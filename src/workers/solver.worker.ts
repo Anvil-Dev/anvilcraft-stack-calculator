@@ -3,15 +3,21 @@
 import highsLoader from 'highs'
 import wasmUrl from 'highs/runtime?url'
 import { solveWithHighs } from '../domain/optimizer'
+import { createProvenLayout } from '../domain/provenLayouts'
 import type { SolverRequestMessage, SolverResponseMessage } from './messages'
 
-const highsPromise = highsLoader({ locateFile: () => wasmUrl })
+let highsPromise: ReturnType<typeof highsLoader> | null = null
+
+function loadHighs(): ReturnType<typeof highsLoader> {
+  highsPromise ??= highsLoader({ locateFile: () => wasmUrl })
+  return highsPromise
+}
 
 self.onmessage = async (event: MessageEvent<SolverRequestMessage>) => {
-  const highs = await highsPromise
+  const provenOutcome = createProvenLayout(event.data.request)
   const response: SolverResponseMessage = {
     requestId: event.data.requestId,
-    outcome: solveWithHighs(highs, event.data.request),
+    outcome: provenOutcome ?? solveWithHighs(await loadHighs(), event.data.request),
   }
   self.postMessage(response, response.outcome.ok ? [response.outcome.result.cells.buffer] : [])
 }

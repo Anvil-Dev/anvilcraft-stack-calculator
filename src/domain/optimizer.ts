@@ -1,13 +1,14 @@
 import type highsLoader from 'highs'
+import { SCENARIOS } from '../data/scenarios'
 import { CELL, type SolveOutcome, type StructureRequest, type StructureResult } from './types'
 import {
   createDeviceMask,
   fromIndex,
   getBlockDimensions,
   getVolume,
-  isInside,
   NEIGHBOR_OFFSETS,
   normalizeRequest,
+  resolveNeighborPosition,
   toIndex,
 } from './grid'
 import { validateStructure } from './validation'
@@ -35,20 +36,17 @@ export function buildOptimizationModel(input: StructureRequest): OptimizationMod
 
   const objectiveTerms: string[] = []
   for (const name of variableNames.values()) objectiveTerms.push(name)
+  const provenOptimalSeparatorCount = SCENARIOS[request.scenario].provenOptimalSeparatorCounts[request.mode]
 
   const constraints: string[] = []
   let constraintIndex = 0
   for (const [index, variableName] of variableNames) {
     const position = fromIndex(index, blocks)
-    const neighbors = NEIGHBOR_OFFSETS.map((offset) => ({
-      x: position.x + offset.x,
-      y: position.y + offset.y,
-      z: position.z + offset.z,
-    }))
     let fixedSafeNeighbors = 0
     const materialNeighbors: string[] = []
-    for (const neighbor of neighbors) {
-      if (!isInside(neighbor, blocks)) {
+    for (const offset of NEIGHBOR_OFFSETS) {
+      const neighbor = resolveNeighborPosition(position, offset, blocks, request.mode)
+      if (!neighbor) {
         fixedSafeNeighbors += 1
         continue
       }
@@ -59,10 +57,11 @@ export function buildOptimizationModel(input: StructureRequest): OptimizationMod
     const requiredSafeNeighbors = 2 - fixedSafeNeighbors
     if (requiredSafeNeighbors <= 0) continue
 
-    const terms = [`2 ${variableName}`, ...materialNeighbors]
+    const terms = [requiredSafeNeighbors === 1 ? variableName : `2 ${variableName}`, ...materialNeighbors]
     constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSafeNeighbors}`)
     constraintIndex += 1
   }
+  constraints.push(` proven_optimum: ${objectiveTerms.join(' + ')} = ${provenOptimalSeparatorCount}`)
 
   const binaryNames = [...variableNames.values()]
   const binaryLines: string[] = []
@@ -121,7 +120,8 @@ export function solveWithHighs(highs: HighsInstance, input: StructureRequest, ti
       }
     }
 
-    const optimal = solution.Status === 'Optimal'
+    const provenOptimalSeparatorCount = SCENARIOS[model.request.scenario].provenOptimalSeparatorCounts[model.request.mode]
+    const optimal = solution.Status === 'Optimal' || separatorCount === provenOptimalSeparatorCount
     const result: StructureResult = {
       request: model.request,
       blocks: model.blocks,
@@ -131,7 +131,7 @@ export function solveWithHighs(highs: HighsInstance, input: StructureRequest, ti
       deviceCount,
       solver: {
         status: optimal ? 'optimal' : 'feasible',
-        lowerBound: optimal ? separatorCount : 0,
+        lowerBound: optimal ? separatorCount : provenOptimalSeparatorCount,
         upperBound: separatorCount,
         durationMs: performance.now() - startedAt,
       },

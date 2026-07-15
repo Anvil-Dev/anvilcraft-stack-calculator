@@ -6,15 +6,12 @@ import StructurePreview from './components/StructurePreview.vue'
 import LayerPreview from './components/LayerPreview.vue'
 import { SCENARIOS } from './data/scenarios'
 import { ROLE_TEXTURES } from './data/visualAssets'
-import { CELL, type Axis, type Dimensions, type ScenarioId, type StackMode, type StructureRequest, type StructureResult } from './domain/types'
-import { MAX_PLANAR_UNITS, MAX_VOLUMETRIC_UNITS, normalizeRequest } from './domain/grid'
+import { CELL, type Axis, type ScenarioId, type StackMode, type StructureRequest, type StructureResult } from './domain/types'
+import { getReplicationAxes, normalizeRequest } from './domain/grid'
 import { useStructureSolver } from './composables/useStructureSolver'
 
 const scenario = ref<ScenarioId>('void-energy')
 const mode = ref<StackMode>('single')
-const unitX = ref(1)
-const unitY = ref(1)
-const unitZ = ref(1)
 const result = shallowRef<StructureResult | null>(null)
 const preview = ref<InstanceType<typeof StructurePreview> | null>(null)
 const previewShell = ref<HTMLElement | null>(null)
@@ -25,11 +22,13 @@ const showSeparator = ref(true)
 const showDevice = ref(true)
 const fadePrimary = ref(true)
 const sliceEnabled = ref(false)
-const inputError = ref('')
 const { solve, solving, error: solverError } = useStructureSolver()
 
 const scenarioDefinition = computed(() => SCENARIOS[scenario.value])
-const axisLimit = computed(() => mode.value === 'volumetric' ? MAX_VOLUMETRIC_UNITS : MAX_PLANAR_UNITS)
+const replicationAxisLabel = computed(() => {
+  const axes = getReplicationAxes(mode.value)
+  return axes.length > 0 ? axes.map((axis) => axis.toUpperCase()).join(' / ') : '不复制'
+})
 const totalMaterial = computed(() => result.value ? result.value.primaryCount + result.value.separatorCount : 0)
 const separatorRatio = computed(() => totalMaterial.value > 0 && result.value
   ? result.value.separatorCount / totalMaterial.value * 100
@@ -40,14 +39,9 @@ const statusText = computed(() => {
   if (!result.value) return '等待计算'
   return result.value.solver.status === 'optimal' ? '已证明最优' : '可行方案'
 })
-const currentRequestUnits = computed<Dimensions>(() => ({ x: unitX.value, y: unitY.value, z: unitZ.value }))
-
 onMounted(() => runCalculation())
 
 watch(mode, () => {
-  unitX.value = 1
-  unitY.value = 1
-  unitZ.value = 1
   void nextTick(runCalculation)
 })
 watch(scenario, () => void runCalculation())
@@ -58,19 +52,11 @@ watch([result, layerAxis], () => {
 })
 
 function createRequest(): StructureRequest {
-  return normalizeRequest({ scenario: scenario.value, mode: mode.value, units: currentRequestUnits.value })
+  return normalizeRequest({ scenario: scenario.value, mode: mode.value, units: { x: 1, y: 1, z: 1 } })
 }
 
 async function runCalculation(): Promise<void> {
-  inputError.value = ''
-  let request: StructureRequest
-  try {
-    request = createRequest()
-  } catch (cause) {
-    inputError.value = cause instanceof Error ? cause.message : '尺寸输入无效'
-    return
-  }
-  const outcome = await solve(request)
+  const outcome = await solve(createRequest())
   if (!outcome.ok) return
   result.value = outcome.result
   layerIndex.value = Math.min(2, outcome.result.blocks[layerAxis.value] - 1)
@@ -79,9 +65,6 @@ async function runCalculation(): Promise<void> {
 function resetAll(): void {
   scenario.value = 'void-energy'
   mode.value = 'single'
-  unitX.value = 1
-  unitY.value = 1
-  unitZ.value = 1
   showPrimary.value = true
   showSeparator.value = true
   showDevice.value = true
@@ -108,7 +91,8 @@ async function copyText(text: string, success: string): Promise<void> {
 function copyMaterialList(): void {
   if (!result.value) return
   const lines = [
-    `${scenarioDefinition.value.name} ${result.value.blocks.x}x${result.value.blocks.y}x${result.value.blocks.z}`,
+    `${scenarioDefinition.value.name} 可复制单元 ${result.value.blocks.x}x${result.value.blocks.y}x${result.value.blocks.z}`,
+    `复制方向: ${replicationAxisLabel.value}`,
     `${scenarioDefinition.value.primaryName}: ${result.value.primaryCount}`,
     `${scenarioDefinition.value.separatorName}: ${result.value.separatorCount}`,
     `${scenarioDefinition.value.deviceName}: ${result.value.deviceCount}`,
@@ -178,19 +162,16 @@ async function toggleFullscreen(): Promise<void> {
             <a-radio value="volumetric">立体</a-radio>
           </a-radio-group>
 
-          <div v-if="mode === 'single'" class="fixed-dimension"><span>固定尺寸</span><strong>5 × 5 × 5</strong></div>
-          <div v-else class="dimension-grid">
-            <label><span>{{ mode === 'volumetric' ? 'l · X' : 'm · X' }}</span><a-input-number v-model="unitX" :min="1" :max="axisLimit" size="large" /></label>
-            <label v-if="mode === 'volumetric'"><span>m · Y</span><a-input-number v-model="unitY" :min="1" :max="axisLimit" size="large" /></label>
-            <label><span>n · Z</span><a-input-number v-model="unitZ" :min="1" :max="axisLimit" size="large" /></label>
+          <div class="unit-definition">
+            <div><span>{{ mode === 'single' ? '独立单元' : '可复制单元' }}</span><strong>5 × 5 × 5</strong></div>
+            <div><span>复制方向</span><strong>{{ replicationAxisLabel }}</strong></div>
           </div>
 
-          <p v-if="inputError" class="form-error" role="alert">{{ inputError }}</p>
-          <a-button type="primary" size="large" long :loading="solving" :disabled="Boolean(inputError)" @click="runCalculation">计算布局</a-button>
+          <a-button type="primary" size="large" long :loading="solving" @click="runCalculation">计算布局</a-button>
         </section>
 
         <section class="control-section material-section">
-          <div class="section-heading"><h2>材料统计</h2></div>
+          <div class="section-heading"><h2>单元材料统计</h2></div>
           <div class="material-line">
             <img :src="ROLE_TEXTURES[scenario].primary" alt="" />
             <div><span>{{ scenarioDefinition.primaryName }}</span><strong>{{ formatNumber(result?.primaryCount ?? 0) }}</strong></div>
@@ -221,8 +202,8 @@ async function toggleFullscreen(): Promise<void> {
 
       <section class="result-area" aria-label="计算结果">
         <div class="metrics-strip">
-          <div><span>结构尺寸</span><strong>{{ result ? `${result.blocks.x} × ${result.blocks.y} × ${result.blocks.z}` : '—' }}</strong></div>
-          <div><span>基础单元</span><strong>{{ result ? formatNumber(result.deviceCount) : '—' }}</strong></div>
+          <div><span>单元尺寸</span><strong>{{ result ? `${result.blocks.x} × ${result.blocks.y} × ${result.blocks.z}` : '—' }}</strong></div>
+          <div><span>复制方向</span><strong>{{ replicationAxisLabel }}</strong></div>
           <div><span>隔离材料占比</span><strong>{{ result ? `${separatorRatio.toFixed(2)}%` : '—' }}</strong></div>
           <div><span>求解耗时</span><strong>{{ result ? `${Math.round(result.solver.durationMs)} ms` : '—' }}</strong></div>
         </div>

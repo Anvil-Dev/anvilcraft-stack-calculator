@@ -4,6 +4,10 @@ async function waitForSingleResult(page: Page): Promise<void> {
   await page.waitForFunction(() => document.querySelector('.material-line strong')?.textContent?.trim() === '110')
 }
 
+async function waitForPrimaryCount(page: Page, count: string): Promise<void> {
+  await page.waitForFunction((expected) => document.querySelector('.material-line strong')?.textContent?.trim() === expected, count)
+}
+
 test('calculates the proven single-unit layout and renders nonblank WebGL', async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
@@ -94,6 +98,25 @@ test('switches to plutonium assets without changing the valid topology', async (
   })
   expect(heatCollectorPixels.blueCore).toBeGreaterThan(100)
   expect(heatCollectorPixels.orangeFrame).toBeGreaterThan(100)
+})
+
+test('solves one repeatable unit without quantity inputs', async ({ page }) => {
+  await page.goto('/')
+  await waitForSingleResult(page)
+  await expect(page.locator('.arco-input-number')).toHaveCount(0)
+  await expect(page.locator('.unit-definition')).toContainText('不复制')
+
+  await page.locator('input[value="planar"]').evaluate((input: HTMLInputElement) => input.click())
+  await waitForPrimaryCount(page, '93')
+  await expect(page.locator('.material-line strong')).toHaveText(['93', '31', '1'])
+  await expect(page.locator('.unit-definition')).toContainText('X / Z')
+  await expect(page.locator('.arco-input-number')).toHaveCount(0)
+
+  await page.locator('input[value="volumetric"]').evaluate((input: HTMLInputElement) => input.click())
+  await waitForPrimaryCount(page, '90')
+  await expect(page.locator('.material-line strong')).toHaveText(['90', '34', '1'])
+  await expect(page.locator('.unit-definition')).toContainText('X / Y / Z')
+  await expect(page.locator('.arco-input-number')).toHaveCount(0)
 })
 
 test('keeps the calculator within all target viewport widths', async ({ page }) => {

@@ -2,8 +2,10 @@ import { CELL, type Axis, type CellCode, type Dimensions, type Position, type St
 
 export const UNIT_SIZE = 5
 export const DEVICE_OFFSET = 2
-export const MAX_PLANAR_UNITS = 4
-export const MAX_VOLUMETRIC_UNITS = 2
+
+const PLANAR_REPLICATION_AXES = ['x', 'z'] as const
+const VOLUMETRIC_REPLICATION_AXES = ['x', 'y', 'z'] as const
+const NO_REPLICATION_AXES: readonly Axis[] = []
 
 export const NEIGHBOR_OFFSETS: readonly Position[] = [
   { x: -1, y: 0, z: 0 },
@@ -14,10 +16,8 @@ export const NEIGHBOR_OFFSETS: readonly Position[] = [
   { x: 0, y: 0, z: 1 },
 ]
 
-export function normalizeUnits(mode: StackMode, units: Dimensions): Dimensions {
-  if (mode === 'single') return { x: 1, y: 1, z: 1 }
-  if (mode === 'planar') return { x: units.x, y: 1, z: units.z }
-  return { ...units }
+export function normalizeUnits(_mode: StackMode, _units: Dimensions): Dimensions {
+  return { x: 1, y: 1, z: 1 }
 }
 
 export function normalizeRequest(request: StructureRequest): StructureRequest {
@@ -34,17 +34,35 @@ export function validateUnits(mode: StackMode, units: Dimensions): void {
     }
   }
 
-  if (mode === 'single' && (units.x !== 1 || units.y !== 1 || units.z !== 1)) {
-    throw new Error('不堆积模式固定为 1 x 1 x 1 单元')
+  if (units.x !== 1 || units.y !== 1 || units.z !== 1) {
+    throw new Error(`${mode} 模式固定求解一个 1 x 1 x 1 可复制单元`)
   }
-  if (mode === 'planar' && units.y !== 1) {
-    throw new Error('平面模式的 Y 方向固定为 1 个单元')
-  }
+}
 
-  const limit = mode === 'volumetric' ? MAX_VOLUMETRIC_UNITS : MAX_PLANAR_UNITS
-  if (units.x > limit || units.y > limit || units.z > limit) {
-    throw new Error(`当前模式每个方向最多支持 ${limit} 个单元`)
+export function getReplicationAxes(mode: StackMode): readonly Axis[] {
+  if (mode === 'planar') return PLANAR_REPLICATION_AXES
+  if (mode === 'volumetric') return VOLUMETRIC_REPLICATION_AXES
+  return NO_REPLICATION_AXES
+}
+
+export function resolveNeighborPosition(
+  position: Position,
+  offset: Position,
+  dimensions: Dimensions,
+  mode: StackMode,
+): Position | null {
+  const resolved = {
+    x: position.x + offset.x,
+    y: position.y + offset.y,
+    z: position.z + offset.z,
   }
+  const replicationAxes = getReplicationAxes(mode)
+  for (const axis of ['x', 'y', 'z'] as const) {
+    if (resolved[axis] >= 0 && resolved[axis] < dimensions[axis]) continue
+    if (!replicationAxes.includes(axis)) return null
+    resolved[axis] = (resolved[axis] + dimensions[axis]) % dimensions[axis]
+  }
+  return resolved
 }
 
 export function getBlockDimensions(units: Dimensions): Dimensions {

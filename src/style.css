@@ -55,21 +55,17 @@ button, input { font: inherit; }
 .full-segmented .arco-radio-button { flex: 1; }
 .full-segmented .arco-radio-button-content { width: 100%; padding-inline: 8px; text-align: center; }
 
-.fixed-dimension {
-  min-height: 54px;
+.unit-definition {
   margin: 14px 0;
-  padding: 0 12px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   background: #f3f6f7;
   border: 1px solid #e0e5e9;
 }
-.fixed-dimension span { color: var(--text-muted); font-size: 12px; }
-.fixed-dimension strong { font: 600 14px/1 var(--mono-font); }
-.dimension-grid { margin: 14px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.dimension-grid label span { margin-bottom: 5px; display: block; color: var(--text-muted); font: 11px/1 var(--mono-font); }
-.dimension-grid .arco-input-number { width: 100%; }
+.unit-definition > div { min-height: 38px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.unit-definition > div + div { border-top: 1px solid #e0e5e9; }
+.unit-definition span { color: var(--text-muted); font-size: 12px; }
+.unit-definition strong { font: 600 13px/1 var(--mono-font); }
 .form-error { margin: 0 0 8px; color: #c23c35; font-size: 12px; }
 
 .material-section { padding-bottom: 15px; }
@@ -109,7 +105,6 @@ button, input { font: inherit; }
 
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 260px minmax(0, 1fr); }
-  .dimension-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .preview-shell { height: 500px; min-height: 500px; }
 }
 

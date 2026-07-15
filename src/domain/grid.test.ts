@@ -5,7 +5,9 @@ import {
   fromIndex,
   getBlockDimensions,
   getDevicePositions,
+  getReplicationAxes,
   normalizeUnits,
+  resolveNeighborPosition,
   toIndex,
 } from './grid'
 import { validateStructure } from './validation'
@@ -13,8 +15,20 @@ import { validateStructure } from './validation'
 describe('grid', () => {
   it('normalizes all three stack modes', () => {
     expect(normalizeUnits('single', { x: 4, y: 4, z: 4 })).toEqual({ x: 1, y: 1, z: 1 })
-    expect(normalizeUnits('planar', { x: 3, y: 4, z: 2 })).toEqual({ x: 3, y: 1, z: 2 })
-    expect(normalizeUnits('volumetric', { x: 2, y: 2, z: 1 })).toEqual({ x: 2, y: 2, z: 1 })
+    expect(normalizeUnits('planar', { x: 3, y: 4, z: 2 })).toEqual({ x: 1, y: 1, z: 1 })
+    expect(normalizeUnits('volumetric', { x: 2, y: 2, z: 1 })).toEqual({ x: 1, y: 1, z: 1 })
+  })
+
+  it('wraps neighbor coordinates only on replication axes', () => {
+    const blocks = { x: 5, y: 5, z: 5 }
+    const origin = { x: 0, y: 0, z: 0 }
+    expect(getReplicationAxes('single')).toEqual([])
+    expect(getReplicationAxes('planar')).toEqual(['x', 'z'])
+    expect(getReplicationAxes('volumetric')).toEqual(['x', 'y', 'z'])
+    expect(resolveNeighborPosition(origin, { x: -1, y: 0, z: 0 }, blocks, 'single')).toBeNull()
+    expect(resolveNeighborPosition(origin, { x: -1, y: 0, z: 0 }, blocks, 'planar')).toEqual({ x: 4, y: 0, z: 0 })
+    expect(resolveNeighborPosition(origin, { x: 0, y: -1, z: 0 }, blocks, 'planar')).toBeNull()
+    expect(resolveNeighborPosition(origin, { x: 0, y: -1, z: 0 }, blocks, 'volumetric')).toEqual({ x: 0, y: 4, z: 0 })
   })
 
   it('places one device in every unit center', () => {
@@ -110,5 +124,33 @@ describe('independent validation', () => {
 
     const report = validateStructure(result)
     expect(report.decayPositions).toContainEqual(target)
+  })
+
+  it('validates primary neighbors across planar unit boundaries', () => {
+    const blocks = { x: 5, y: 5, z: 5 }
+    const cells = new Uint8Array(125)
+    cells.fill(CELL.separator)
+    const target = { x: 0, y: 2, z: 1 }
+    const primaryPositions = [
+      target,
+      { x: 4, y: 2, z: 1 }, { x: 1, y: 2, z: 1 },
+      { x: 0, y: 1, z: 1 }, { x: 0, y: 3, z: 1 },
+      { x: 0, y: 2, z: 0 },
+    ]
+    for (const position of primaryPositions) cells[toIndex(position, blocks)] = CELL.primary
+    cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
+
+    const createResult = (mode: 'single' | 'planar'): StructureResult => ({
+      request: { scenario: 'void-energy', mode, units: { x: 1, y: 1, z: 1 } },
+      blocks,
+      cells,
+      primaryCount: primaryPositions.length,
+      separatorCount: cells.length - primaryPositions.length - 1,
+      deviceCount: 1,
+      solver: { status: 'feasible', lowerBound: 0, upperBound: 118, durationMs: 0 },
+    })
+
+    expect(validateStructure(createResult('single')).valid).toBe(true)
+    expect(validateStructure(createResult('planar')).decayPositions).toContainEqual(target)
   })
 })
