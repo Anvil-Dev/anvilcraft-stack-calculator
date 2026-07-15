@@ -31,6 +31,29 @@ test('calculates the proven single-unit layout and renders nonblank WebGL', asyn
   expect(pixels.nonBackground).toBeGreaterThan(500)
   expect(pixels.uniqueColors).toBeGreaterThan(20)
   expect(pixels.error).toBe(0)
+
+  const visibilitySwitches = page.locator('.switch-line .arco-switch')
+  await visibilitySwitches.nth(0).click()
+  await visibilitySwitches.nth(2).click()
+  await page.waitForTimeout(100)
+  const negativeMatterPixels = await page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
+    if (!gl) return { outline: 0, purpleBody: 0 }
+    const data = new Uint8Array(canvas.width * canvas.height * 4)
+    gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, data)
+    let outline = 0
+    let purpleBody = 0
+    for (let index = 0; index < data.length; index += 16) {
+      const red = data[index] ?? 0
+      const green = data[index + 1] ?? 0
+      const blue = data[index + 2] ?? 0
+      if (red > 245 && green > 245 && blue > 245) outline += 1
+      if (blue > red && red > 140 && green > 130) purpleBody += 1
+    }
+    return { outline, purpleBody }
+  })
+  expect(negativeMatterPixels.outline).toBeGreaterThan(100)
+  expect(negativeMatterPixels.purpleBody).toBeGreaterThan(150)
   expect(pageErrors).toEqual([])
 })
 
