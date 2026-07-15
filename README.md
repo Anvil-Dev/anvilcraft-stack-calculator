@@ -35,6 +35,12 @@ pnpm dev
 
 默认开发地址为 `http://localhost:5173/`。
 
+## 部署
+
+线上地址：[https://anvil-dev.github.io/anvilcraft-stack-calculator/](https://anvil-dev.github.io/anvilcraft-stack-calculator/)
+
+推送到 `main` 分支会触发 GitHub Actions，在测试通过后构建并部署到 GitHub Pages。首次部署前，需要在仓库的 **Settings > Pages > Build and deployment** 中将 Source 设置为 **GitHub Actions**；也可以在 Actions 页面手动运行部署工作流。
+
 ## 验证
 
 ```bash
