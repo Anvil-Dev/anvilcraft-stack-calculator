@@ -1,6 +1,9 @@
 import type { ScenarioId, StackMode } from '../domain/types'
 
-export type DecayRuleId = 'five-same-face-neighbors-v1' | 'primary-minus-separator-at-most-two-v1'
+// AnvilCraftServerConfig.WorldSettings.voidMatterDecayThreshold (server default).
+export const VOID_MATTER_DECAY_THRESHOLD = 5
+
+export type DecayRuleId = 'five-same-face-neighbors-v1' | 'ice-or-water-face-neighbor-v1'
 
 export interface PrecomputedLayoutDefinition {
   status: 'optimal' | 'feasible'
@@ -12,6 +15,7 @@ export interface ScenarioDefinition {
   id: ScenarioId
   name: string
   shortName: string
+  ruleDescription: string
   primaryName: string
   separatorName: string
   deviceName: string
@@ -29,10 +33,11 @@ const VOID_SEPARATOR_INDICES: Readonly<Record<StackMode, readonly number[]>> = {
   volumetric: [5, 7, 10, 13, 20, 22, 23, 26, 29, 33, 36, 41, 42, 44, 52, 55, 64, 66, 70, 73, 79, 81, 83, 85, 93, 95, 97, 101, 103, 104, 109, 112, 116, 119],
 }
 
+// Offline CP-SAT minimized the number of packed ice blocks with no objective cutoff.
 const PLUTONIUM_SEPARATOR_INDICES: Readonly<Record<StackMode, readonly number[]>> = {
-  single: [6, 9, 12, 17, 20, 23, 25, 27, 28, 33, 35, 38, 41, 44, 47, 51, 56, 59, 65, 68, 72, 78, 80, 82, 86, 89, 93, 96, 99, 101, 108, 109, 111, 115, 117, 118],
-  planar: [1, 3, 5, 8, 13, 15, 16, 17, 24, 25, 32, 36, 39, 42, 47, 49, 53, 56, 59, 65, 68, 71, 75, 76, 77, 85, 88, 92, 99, 100, 107, 108, 109, 111, 116, 119, 121, 123],
-  volumetric: [0, 7, 9, 11, 19, 21, 23, 27, 29, 31, 35, 38, 42, 45, 51, 55, 58, 66, 69, 73, 79, 82, 86, 89, 93, 95, 97, 101, 103, 105, 113, 115, 117, 124],
+  single: [5, 8, 16, 19, 22, 26, 27, 29, 37, 44, 45, 58, 60, 61, 73, 75, 77, 89, 92, 96, 104, 106, 113, 115, 117, 124],
+  planar: [1, 9, 12, 15, 23, 29, 32, 39, 41, 55, 68, 70, 72, 76, 78, 83, 86, 90, 101, 106, 114, 117, 124],
+  volumetric: [5, 7, 15, 23, 29, 36, 38, 46, 52, 55, 67, 69, 83, 86, 95, 98, 101, 104, 114, 117],
 }
 
 export const SCENARIOS: Record<ScenarioId, ScenarioDefinition> = {
@@ -40,6 +45,7 @@ export const SCENARIOS: Record<ScenarioId, ScenarioDefinition> = {
     id: 'void-energy',
     name: '虚空发电',
     shortName: '虚空',
+    ruleDescription: `按服务器默认配置，虚空物质块有 ${VOID_MATTER_DECAY_THRESHOLD} 个或更多面紧邻虚空物质块时会衰变。`,
     primaryName: '虚空物质块',
     separatorName: '负物质块',
     deviceName: '虚空能收集器',
@@ -50,26 +56,27 @@ export const SCENARIOS: Record<ScenarioId, ScenarioDefinition> = {
       volumetric: { status: 'optimal', lowerBound: 34, separatorIndices: VOID_SEPARATOR_INDICES.volumetric },
     },
     minecraftVersion: '1.21.1',
-    modVersion: '1.6-dev',
-    sourceRevision: 'dev/1.21/1.6',
-    verifiedAt: '2026-07-15',
+    modVersion: '1.6.0-dev',
+    sourceRevision: '6a4cde43b4ece65b765137a7aab145b9b4c002bf',
+    verifiedAt: '2026-11-22',
   },
   'plutonium-heat': {
     id: 'plutonium-heat',
     name: '钚块集热',
     shortName: '钚块',
+    ruleDescription: '每个钚块至少有一面须接触冰、水或含水方块，否则会融毁为岩浆块。布局用浮冰冷却。',
     primaryName: '钚块',
-    separatorName: '铅块',
+    separatorName: '浮冰',
     deviceName: '集热器',
-    ruleId: 'primary-minus-separator-at-most-two-v1',
+    ruleId: 'ice-or-water-face-neighbor-v1',
     layouts: {
-      single: { status: 'feasible', lowerBound: 33, separatorIndices: PLUTONIUM_SEPARATOR_INDICES.single },
-      planar: { status: 'feasible', lowerBound: 35, separatorIndices: PLUTONIUM_SEPARATOR_INDICES.planar },
-      volumetric: { status: 'feasible', lowerBound: 33, separatorIndices: PLUTONIUM_SEPARATOR_INDICES.volumetric },
+      single: { status: 'optimal', lowerBound: 26, separatorIndices: PLUTONIUM_SEPARATOR_INDICES.single },
+      planar: { status: 'optimal', lowerBound: 23, separatorIndices: PLUTONIUM_SEPARATOR_INDICES.planar },
+      volumetric: { status: 'optimal', lowerBound: 20, separatorIndices: PLUTONIUM_SEPARATOR_INDICES.volumetric },
     },
     minecraftVersion: '1.21.1',
-    modVersion: '1.6-dev',
-    sourceRevision: 'user-confirmed/2026-07-15',
-    verifiedAt: '2026-07-15',
+    modVersion: '1.6.0-dev',
+    sourceRevision: '6a4cde43b4ece65b765137a7aab145b9b4c002bf',
+    verifiedAt: '2026-11-22',
   },
 }

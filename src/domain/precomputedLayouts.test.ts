@@ -6,6 +6,9 @@ describe('versioned precomputed layouts', () => {
     ['void-energy', 'single', 110, 14],
     ['void-energy', 'planar', 93, 31],
     ['void-energy', 'volumetric', 90, 34],
+    ['plutonium-heat', 'single', 98, 26],
+    ['plutonium-heat', 'planar', 101, 23],
+    ['plutonium-heat', 'volumetric', 104, 20],
   ] as const)('returns the validated optimal %s %s unit', (scenario, mode, primaryCount, separatorCount) => {
     const outcome = createPrecomputedLayout({ scenario, mode, units: { x: 9, y: 9, z: 9 } })
     expect(outcome?.ok).toBe(true)
@@ -16,23 +19,5 @@ describe('versioned precomputed layouts', () => {
     expect(outcome.result.separatorCount).toBe(separatorCount)
     expect(outcome.result.deviceCount).toBe(1)
     expect(outcome.result.solver).toMatchObject({ status: 'optimal', lowerBound: separatorCount, upperBound: separatorCount })
-  })
-
-  it.each([
-    ['single', 88, 36, 33],
-    ['planar', 86, 38, 35],
-    ['volumetric', 90, 34, 33],
-  ] as const)('returns the validated feasible plutonium %s unit', (mode, primaryCount, separatorCount, lowerBound) => {
-    const outcome = createPrecomputedLayout({
-      scenario: 'plutonium-heat',
-      mode,
-      units: { x: 1, y: 1, z: 1 },
-    })
-    expect(outcome?.ok).toBe(true)
-    if (!outcome?.ok) return
-    expect(outcome.result.primaryCount).toBe(primaryCount)
-    expect(outcome.result.separatorCount).toBe(separatorCount)
-    expect(outcome.result.deviceCount).toBe(1)
-    expect(outcome.result.solver).toMatchObject({ status: 'feasible', lowerBound, upperBound: separatorCount })
   })
 })

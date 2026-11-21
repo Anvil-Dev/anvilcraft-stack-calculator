@@ -101,11 +101,10 @@ onBeforeUnmount(() => {
 function initializeScene(): void {
   if (!host.value) return
   scene = new Scene()
-  scene.background = new Color('#171a1f')
   camera = new PerspectiveCamera(38, 1, 0.05, 1000)
   renderer = new WebGLRenderer({
     antialias: true,
-    alpha: false,
+    alpha: true,
     powerPreference: 'high-performance',
     preserveDrawingBuffer: true,
   })
@@ -244,7 +243,9 @@ function rebuildLayout(): void {
   addInstancedParts(templates.deviceHead, devicePositions, true)
 
   const gridSize = Math.max(result.blocks.x, result.blocks.z) + 4
-  const grid = new GridHelper(gridSize, gridSize, '#45505d', '#2b323b')
+  const grid = new GridHelper(gridSize, gridSize, '#797fad', '#596287')
+  grid.material.transparent = true
+  grid.material.opacity = 0.48
   grid.position.y = -result.blocks.y / 2 - 0.52
   grid.userData.disposable = true
   layoutGroup.add(grid)
@@ -373,7 +374,7 @@ defineExpose({ resetView: fitCamera })
   height: 100%;
   min-height: 420px;
   overflow: hidden;
-  background: #171a1f;
+  background: var(--scene-bg);
 }
 
 .structure-preview :deep(.preview-canvas) {
@@ -386,7 +387,7 @@ defineExpose({ resetView: fitCamera })
 }
 
 .structure-preview :deep(.preview-canvas:focus-visible) {
-  box-shadow: inset 0 0 0 2px #35a875;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .scene-state {
@@ -395,13 +396,13 @@ defineExpose({ resetView: fitCamera })
   inset: 0;
   display: grid;
   place-items: center;
-  color: #aeb8c5;
+  color: var(--text-muted);
   font-size: 14px;
   pointer-events: none;
 }
 
 .scene-error {
-  color: #ffb4ac;
+  color: rgb(var(--danger-6));
 }
 
 @media (max-width: 767px) {

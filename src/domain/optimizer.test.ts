@@ -1,6 +1,7 @@
 import highsLoader from 'highs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildOptimizationModel, solveWithHighs } from './optimizer'
+import { createPrecomputedLayout } from './precomputedLayouts'
 
 type HighsInstance = Awaited<ReturnType<typeof highsLoader>>
 let highs: HighsInstance
@@ -23,15 +24,14 @@ describe('HiGHS structure optimizer', () => {
     expect(model.variableNames.size).toBe(124)
   })
 
-  it('builds the plutonium-minus-lead constraint without counting the collector', () => {
+  it('requires a coolant in each closed face neighborhood, excluding the collector', () => {
     const model = buildOptimizationModel({
       scenario: 'plutonium-heat',
       mode: 'single',
       units: { x: 1, y: 1, z: 1 },
     })
-    expect(model.lp).toContain('known_upper_bound:')
-    expect(model.lp).toMatch(/known_upper_bound: .* <= 36/)
-    expect(model.lp).toContain('2 x_57 + x_56 + x_58 + x_32 + x_82 + x_52 >= 2')
+    expect(model.lp).toContain('x_57 + x_56 + x_58 + x_32 + x_82 + x_52 >= 1')
+    expect(model.lp).toContain('x_0 + x_1 + x_25 + x_5 >= 1')
     expect(model.lp).not.toContain('x_62')
   })
 
@@ -53,6 +53,21 @@ describe('HiGHS structure optimizer', () => {
       expect(outcome.result.solver.upperBound).toBe(separatorCount)
     }
   }, 30_000)
+
+  it('returns the independently validated layout when HiGHS times out without an incumbent', () => {
+    const request = {
+      scenario: 'plutonium-heat',
+      mode: 'planar',
+      units: { x: 1, y: 1, z: 1 },
+    } as const
+    const expected = createPrecomputedLayout(request)
+    const outcome = solveWithHighs(highs, request, 0)
+    expect(expected?.ok).toBe(true)
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok || !expected?.ok) return
+    expect(outcome.result.cells).toEqual(expected.result.cells)
+    expect(outcome.result.solver.status).toBe(expected.result.solver.status)
+  })
 
   it('proves the 1 x 1 x 1 optimum is fourteen separators', () => {
     const outcome = solveWithHighs(highs, {

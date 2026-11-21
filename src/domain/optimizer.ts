@@ -1,5 +1,5 @@
 import type highsLoader from 'highs'
-import { SCENARIOS } from '../data/scenarios'
+import { SCENARIOS, VOID_MATTER_DECAY_THRESHOLD } from '../data/scenarios'
 import { CELL, type SolveOutcome, type StructureRequest, type StructureResult } from './types'
 import {
   createDeviceMask,
@@ -12,6 +12,7 @@ import {
   toIndex,
 } from './grid'
 import { validateStructure } from './validation'
+import { createPrecomputedLayout } from './precomputedLayouts'
 
 type HighsInstance = Awaited<ReturnType<typeof highsLoader>>
 
@@ -52,19 +53,17 @@ export function buildOptimizationModel(input: StructureRequest): OptimizationMod
     }
 
     if (scenario.ruleId === 'five-same-face-neighbors-v1') {
-      const fixedSafeNeighbors = NEIGHBOR_OFFSETS.length - materialNeighbors.length
-      const requiredSafeNeighbors = 2 - fixedSafeNeighbors
-      if (requiredSafeNeighbors <= 0) continue
-      const terms = [requiredSafeNeighbors === 1 ? variableName : `2 ${variableName}`, ...materialNeighbors]
-      constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSafeNeighbors}`)
+      const requiredSeparators = materialNeighbors.length - (VOID_MATTER_DECAY_THRESHOLD - 1)
+      if (requiredSeparators <= 0) continue
+      const terms = [`${requiredSeparators} ${variableName}`, ...materialNeighbors]
+      constraints.push(` cover_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSeparators}`)
       constraintIndex += 1
       continue
     }
 
-    const requiredSeparatorNeighbors = Math.max(0, Math.ceil((materialNeighbors.length - 2) / 2))
-    if (requiredSeparatorNeighbors <= 0) continue
-    const terms = [requiredSeparatorNeighbors === 1 ? variableName : `${requiredSeparatorNeighbors} ${variableName}`, ...materialNeighbors]
-    constraints.push(` plutonium_decay_${constraintIndex}: ${terms.join(' + ')} >= ${requiredSeparatorNeighbors}`)
+    // Every non-device cell is either a coolant or shares a face with one.
+    const terms = [variableName, ...materialNeighbors]
+    constraints.push(` plutonium_cooling_${constraintIndex}: ${terms.join(' + ')} >= 1`)
     constraintIndex += 1
   }
   if (knownLayout) {
@@ -151,6 +150,14 @@ export function solveWithHighs(highs: HighsInstance, input: StructureRequest, ti
 
     const report = validateStructure(result)
     if (!report.valid) {
+      // HiGHS may hit its limit before finding a feasible integer incumbent.
+      if (solution.Status === 'Time limit reached') {
+        const fallback = createPrecomputedLayout(model.request)
+        if (fallback?.ok) {
+          fallback.result.solver.durationMs = performance.now() - startedAt
+          return fallback
+        }
+      }
       return { ok: false, status: 'failed', message: `结果复核失败：${report.errors.join('；')}` }
     }
     return { ok: true, result }

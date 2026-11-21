@@ -1,4 +1,4 @@
-import { SCENARIOS } from '../data/scenarios'
+import { SCENARIOS, VOID_MATTER_DECAY_THRESHOLD } from '../data/scenarios'
 import { CELL, type Position, type StructureResult } from './types'
 import { createDeviceMask, getCell, getVolume, NEIGHBOR_OFFSETS, resolveNeighborPosition, toIndex } from './grid'
 
@@ -50,13 +50,16 @@ export function validateStructure(result: StructureResult): ValidationReport {
           else if (neighborCell === CELL.separator) separatorNeighborCount += 1
         }
         const decays = ruleId === 'five-same-face-neighbors-v1'
-          ? primaryNeighborCount >= 5
-          : primaryNeighborCount - separatorNeighborCount > 2
+          ? primaryNeighborCount >= VOID_MATTER_DECAY_THRESHOLD
+          : separatorNeighborCount === 0
         if (decays) decayPositions.push(position)
       }
     }
   }
 
-  if (decayPositions.length > 0) errors.push(`发现 ${decayPositions.length} 个会衰变的主材料格`)
+  if (decayPositions.length > 0) {
+    const problem = result.request.scenario === 'plutonium-heat' ? '会熔毁的钚块' : '会衰变的虚空物质块'
+    errors.push(`发现 ${decayPositions.length} 个${problem}`)
+  }
   return { valid: errors.length === 0, errors, decayPositions }
 }

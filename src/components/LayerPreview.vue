@@ -30,6 +30,7 @@ const emit = defineEmits<{
 
 const maxLayer = computed(() => props.result ? getAxisLength(props.result.blocks, props.axis) - 1 : 0)
 const layerNumber = computed(() => Math.min(Math.max(props.layerIndex, 0), maxLayer.value))
+const copyLayerLabel = computed(() => `复制本层${SCENARIOS[props.scenario].separatorName}坐标`)
 
 const grid = computed(() => {
   const result = props.result
@@ -59,6 +60,7 @@ const grid = computed(() => {
   }
 
   const definition = SCENARIOS[props.scenario]
+  const separatorMarker = props.scenario === 'plutonium-heat' ? '冰' : '隔'
   const cells = positions.map((position): LayerCell => {
     const rawCode = result.cells[toIndex(position, result.blocks)]
     const code = rawCode === CELL.separator || rawCode === CELL.device ? rawCode : CELL.primary
@@ -69,7 +71,7 @@ const grid = computed(() => {
       position,
       name,
       texture: ROLE_TEXTURES[props.scenario][role],
-      marker: role === 'separator' ? '隔' : role === 'device' ? '机' : '',
+      marker: role === 'separator' ? separatorMarker : role === 'device' ? '机' : '',
     }
   })
   return { columns, rows, cells }
@@ -101,7 +103,7 @@ async function copyLayerSeparators(): Promise<void> {
     .filter((cell) => cell.code === CELL.separator)
     .map((cell) => `(${cell.position.x},${cell.position.y},${cell.position.z})`)
     .join('\n')
-  await navigator.clipboard.writeText(coordinates || '本层无隔离材料')
+  await navigator.clipboard.writeText(coordinates || `本层无${SCENARIOS[props.scenario].separatorName}`)
   Message.success('本层坐标已复制')
 }
 </script>
@@ -119,8 +121,8 @@ async function copyLayerSeparators(): Promise<void> {
           <a-radio value="y">Y</a-radio>
           <a-radio value="z">Z</a-radio>
         </a-radio-group>
-        <a-tooltip content="复制本层隔离材料坐标">
-          <a-button type="text" size="small" aria-label="复制本层隔离材料坐标" @click="copyLayerSeparators">
+        <a-tooltip :content="copyLayerLabel">
+          <a-button type="text" size="small" :aria-label="copyLayerLabel" @click="copyLayerSeparators">
             <template #icon><IconCopy /></template>
           </a-button>
         </a-tooltip>
@@ -172,22 +174,22 @@ async function copyLayerSeparators(): Promise<void> {
 </template>
 
 <style scoped>
-.layer-preview { min-width: 0; background: #fff; border-top: 1px solid #d9dee5; }
-.layer-header { min-height: 48px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #e4e8ed; }
+.layer-preview { min-width: 0; background: var(--panel-bg); border-top: 1px solid var(--border); }
+.layer-header { min-height: 48px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border-soft); }
 .layer-header > div, .layer-tools, .layer-stepper, .layer-stats { display: flex; align-items: center; }
 .layer-header h2 { margin: 0; font-size: 14px; line-height: 1.2; font-weight: 650; }
-.layer-coordinate { margin-left: 10px; color: #687481; font: 12px/1.2 var(--mono-font); }
+.layer-coordinate { margin-left: 10px; color: var(--text-muted); font: 12px/1.2 var(--mono-font); }
 .layer-tools { gap: 8px; }
 .layer-body { padding: 12px 16px 16px; }
 .layer-stepper { max-width: 520px; margin: 0 auto 12px; gap: 8px; }
 .layer-stepper :deep(.arco-slider) { flex: 1; }
-.layer-grid-wrap { min-height: 160px; padding: 12px; display: grid; place-items: center; overflow: auto; background: #1c2026; border: 1px solid #2b323b; }
+.layer-grid-wrap { min-height: 160px; padding: 12px; display: grid; place-items: center; overflow: auto; background: var(--scene-bg); border: 1px solid var(--border); }
 .layer-grid { display: grid; grid-template-columns: repeat(var(--grid-columns), minmax(24px, 40px)); gap: 2px; width: max-content; }
 .layer-cell { width: 100%; aspect-ratio: 1; display: grid; place-items: center; box-sizing: border-box; background-size: cover; image-rendering: pixelated; border: 1px solid rgba(255,255,255,.12); color: #fff; font-size: 11px; font-weight: 700; text-shadow: 0 1px 2px #000; }
 .layer-cell.separator { box-shadow: inset 0 0 0 2px #f5c451; }
 .layer-cell.device { box-shadow: inset 0 0 0 2px #55d6be; }
-.layer-empty { color: #9da8b5; font-size: 13px; }
-.layer-stats { justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 12px; color: #53606d; font-size: 12px; }
+.layer-empty { color: var(--text-muted); font-size: 13px; }
+.layer-stats { justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 12px; color: var(--text-muted); font-size: 12px; }
 .legend-dot { width: 8px; height: 8px; margin-right: 5px; display: inline-block; border-radius: 2px; }
 .primary-dot { background: #596675; }
 .separator-dot { background: #e0aa2f; }

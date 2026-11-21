@@ -31,7 +31,7 @@ test('calculates the proven single-unit layout and renders nonblank WebGL', asyn
     for (let index = 0; index < data.length; index += 64) {
       const color = `${data[index]},${data[index + 1]},${data[index + 2]},${data[index + 3]}`
       colors.add(color)
-      if (color !== '23,26,31,255') nonBackground += 1
+      if (data[index + 3]) nonBackground += 1
     }
     return { nonBackground, uniqueColors: colors.size, error: gl.getError() }
   })
@@ -64,16 +64,28 @@ test('calculates the proven single-unit layout and renders nonblank WebGL', asyn
   expect(pageErrors).toEqual([])
 })
 
-test('switches to the feasible plutonium layout and assets', async ({ page }) => {
+test('shows the optimal packed ice layouts and heat collector', async ({ page }) => {
   await page.goto('/')
   await waitForSingleResult(page)
   await page.locator('input[value="plutonium-heat"]').evaluate((input: HTMLInputElement) => input.click())
   await page.waitForFunction(() => document.querySelector('.material-section img')?.getAttribute('src')?.includes('plutonium'))
-  await waitForPrimaryCount(page, '88')
+  await waitForPrimaryCount(page, '98')
 
-  await expect(page.locator('.material-line strong')).toHaveText(['88', '36', '1'])
-  await expect(page.locator('.topbar-status .arco-tag')).toContainText('可行方案')
-  await expect(page.locator('.metrics-strip')).toContainText('33–36')
+  await expect(page.locator('.material-line strong')).toHaveText(['98', '26', '1'])
+  await expect(page.locator('.separator-line')).toContainText('浮冰')
+  await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
+  await expect(page.locator('.metrics-strip strong').last()).toHaveText('26')
+
+  for (const [mode, count, ice] of [
+    ['planar', '101', '23'],
+    ['volumetric', '104', '20'],
+  ] as const) {
+    await page.locator(`input[value="${mode}"]`).evaluate((input: HTMLInputElement) => input.click())
+    await expect(page.locator('.material-line strong')).toHaveText([count, ice, '1'])
+    await expect(page.locator('.topbar-status .arco-tag')).toContainText('已证明最优')
+    await expect(page.locator('.metrics-strip strong').last()).toHaveText(ice)
+    await expect(page.locator('.rule-description')).toContainText('外缘')
+  }
 
   const visibilitySwitches = page.locator('.switch-line .arco-switch')
   await visibilitySwitches.nth(0).click()
@@ -129,4 +141,22 @@ test('keeps the calculator within all target viewport widths', async ({ page }) 
     const overflow = await page.evaluate(() => document.body.scrollWidth > document.documentElement.clientWidth + 1)
     expect(overflow, `horizontal overflow at ${width}px`).toBe(false)
   }
+})
+
+test('follows the system theme and remembers a keyboard toggle', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.goto('/')
+  const toggle = page.getByRole('button', { name: '深色模式' })
+  const header = page.locator('.topbar')
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  const lightBackground = await header.evaluate((element) => getComputedStyle(element).backgroundColor)
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await expect(header).not.toHaveCSS('background-color', lightBackground)
+  await toggle.focus()
+  await toggle.press('Enter')
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await page.reload()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  await expect(header).toHaveCSS('background-color', lightBackground)
 })

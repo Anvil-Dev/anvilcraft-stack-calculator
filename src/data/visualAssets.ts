@@ -2,7 +2,7 @@ import type { ScenarioId, CellType } from '../domain/types'
 
 import heatCollectorBase from '../assets/anvilcraft/models/block/heat_collector_base.json'
 import heatCollectorHead from '../assets/anvilcraft/models/block/heat_collector_head.json'
-import leadBlock from '../assets/anvilcraft/models/block/lead_block.json'
+import packedIce from '../assets/minecraft/models/block/packed_ice.json'
 import negativeMatterBlock from '../assets/anvilcraft/models/block/negative_matter_block.json'
 import plutoniumBlock from '../assets/anvilcraft/models/block/plutonium_block.json'
 import voidEnergyCollectorBase from '../assets/anvilcraft/models/block/void_energy_collector_base.json'
@@ -13,7 +13,7 @@ import heatCollectorBottom from '../assets/anvilcraft/textures/block/heat_collec
 import heatCollectorHeadTexture from '../assets/anvilcraft/textures/block/heat_collector_head.png'
 import heatCollectorSide from '../assets/anvilcraft/textures/block/heat_collector_side.png'
 import heatCollectorTop from '../assets/anvilcraft/textures/block/heat_collector_top.png'
-import leadBlockTexture from '../assets/anvilcraft/textures/block/lead_block.png'
+import packedIceTexture from '../assets/minecraft/textures/block/packed_ice.png'
 import negativeMatterTexture from '../assets/anvilcraft/textures/block/negative_matter_block.png'
 import negativeMatterOutline from '../assets/anvilcraft/textures/block/negative_matter_block_outline.png'
 import plutoniumBlockTexture from '../assets/anvilcraft/textures/block/plutonium_block.png'
@@ -30,7 +30,7 @@ export const TEXTURE_URLS: Record<string, string> = {
   'anvilcraft:block/heat_collector_head': heatCollectorHeadTexture,
   'anvilcraft:block/heat_collector_side': heatCollectorSide,
   'anvilcraft:block/heat_collector_top': heatCollectorTop,
-  'anvilcraft:block/lead_block': leadBlockTexture,
+  'minecraft:block/packed_ice': packedIceTexture,
   'anvilcraft:block/negative_matter_block': negativeMatterTexture,
   'anvilcraft:block/negative_matter_block_outline': negativeMatterOutline,
   'anvilcraft:block/plutonium_block': plutoniumBlockTexture,
@@ -66,7 +66,7 @@ export const SCENARIO_MODELS: Record<ScenarioId, ScenarioModelAssets> = {
   },
   'plutonium-heat': {
     primary: plutoniumBlock,
-    separator: leadBlock,
+    separator: packedIce,
     deviceBase: heatCollectorBase,
     deviceHead: heatCollectorHead,
   },
@@ -80,7 +80,7 @@ export const ROLE_TEXTURES: Record<ScenarioId, Record<CellType, string>> = {
   },
   'plutonium-heat': {
     primary: plutoniumBlockTexture,
-    separator: leadBlockTexture,
+    separator: packedIceTexture,
     device: heatCollectorTop,
   },
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CELL, type StructureResult } from './types'
+import { CELL, type Position, type StackMode, type StructureResult } from './types'
 import {
   createDeviceMask,
   fromIndex,
@@ -98,7 +98,7 @@ describe('independent validation', () => {
     expect(report.decayPositions).toHaveLength(80)
   })
 
-  it('rejects a primary block with exactly five primary face neighbors', () => {
+  it('decays at five void neighbors and stays stable with four beside the collector', () => {
     const request = { scenario: 'void-energy', mode: 'single', units: { x: 1, y: 1, z: 1 } } as const
     const blocks = getBlockDimensions(request.units)
     const cells = new Uint8Array(125)
@@ -124,6 +124,10 @@ describe('independent validation', () => {
 
     const report = validateStructure(result)
     expect(report.decayPositions).toContainEqual(target)
+    cells[toIndex({ x: 2, y: 2, z: 0 }, blocks)] = CELL.separator
+    result.primaryCount -= 1
+    result.separatorCount += 1
+    expect(validateStructure(result).valid).toBe(true)
   })
 
   it('validates primary neighbors across planar unit boundaries', () => {
@@ -153,95 +157,44 @@ describe('independent validation', () => {
     expect(validateStructure(createResult('single')).valid).toBe(true)
     expect(validateStructure(createResult('planar')).decayPositions).toContainEqual(target)
   })
+})
 
-  it('does not count structure exterior in the plutonium difference', () => {
-    const request = { scenario: 'plutonium-heat', mode: 'single', units: { x: 1, y: 1, z: 1 } } as const
-    const blocks = getBlockDimensions(request.units)
-    const cells = new Uint8Array(125)
-    cells.fill(CELL.separator)
-    const target = { x: 0, y: 0, z: 0 }
-    const primaryPositions = [
-      target,
-      { x: 1, y: 0, z: 0 },
-      { x: 0, y: 1, z: 0 },
-      { x: 0, y: 0, z: 1 },
-    ]
-    for (const position of primaryPositions) cells[toIndex(position, blocks)] = CELL.primary
+describe('plutonium cooling', () => {
+  const blocks = { x: 5, y: 5, z: 5 }
+  function meltingPositions(mode: StackMode, coolant: Position[]) {
+    const cells = new Uint8Array(125).fill(CELL.primary)
     cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
-    const result: StructureResult = {
-      request,
+    for (const position of coolant) cells[toIndex(position, blocks)] = CELL.separator
+    return validateStructure({
+      request: { scenario: 'plutonium-heat', mode, units: { x: 1, y: 1, z: 1 } },
       blocks,
       cells,
-      primaryCount: primaryPositions.length,
-      separatorCount: cells.length - primaryPositions.length - 1,
+      primaryCount: 124 - coolant.length,
+      separatorCount: coolant.length,
       deviceCount: 1,
-      solver: { status: 'feasible', lowerBound: 0, upperBound: 120, durationMs: 0 },
-    }
+      solver: { status: 'feasible', lowerBound: 0, upperBound: coolant.length, durationMs: 0 },
+    }).decayPositions
+  }
 
-    expect(validateStructure(result).decayPositions).toContainEqual(target)
-    cells[toIndex({ x: 1, y: 0, z: 0 }, blocks)] = CELL.separator
-    result.primaryCount -= 1
-    result.separatorCount += 1
-    expect(validateStructure(result).decayPositions).not.toContainEqual(target)
-  })
-
-  it('excludes the heat collector from the plutonium and lead counts', () => {
-    const request = { scenario: 'plutonium-heat', mode: 'single', units: { x: 1, y: 1, z: 1 } } as const
-    const blocks = getBlockDimensions(request.units)
-    const cells = new Uint8Array(125)
-    cells.fill(CELL.separator)
-    const target = { x: 2, y: 2, z: 1 }
-    const primaryPositions = [
-      target,
-      { x: 1, y: 2, z: 1 },
-      { x: 3, y: 2, z: 1 },
-      { x: 2, y: 1, z: 1 },
-      { x: 2, y: 3, z: 1 },
-    ]
-    for (const position of primaryPositions) cells[toIndex(position, blocks)] = CELL.primary
-    cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
-    const result: StructureResult = {
-      request,
-      blocks,
-      cells,
-      primaryCount: primaryPositions.length,
-      separatorCount: cells.length - primaryPositions.length - 1,
-      deviceCount: 1,
-      solver: { status: 'feasible', lowerBound: 0, upperBound: 119, durationMs: 0 },
-    }
-
-    expect(validateStructure(result).decayPositions).toContainEqual(target)
-    cells[toIndex({ x: 1, y: 2, z: 1 }, blocks)] = CELL.separator
-    result.primaryCount -= 1
-    result.separatorCount += 1
-    expect(validateStructure(result).decayPositions).not.toContainEqual(target)
-  })
-
-  it('accepts a plutonium block when the neighbor difference is exactly two', () => {
-    const request = { scenario: 'plutonium-heat', mode: 'single', units: { x: 1, y: 1, z: 1 } } as const
-    const blocks = getBlockDimensions(request.units)
-    const cells = new Uint8Array(125)
-    cells.fill(CELL.separator)
+  it('requires face contact and accepts one coolant beside five plutonium blocks', () => {
     const target = { x: 1, y: 1, z: 1 }
-    const primaryPositions = [
-      target,
-      { x: 0, y: 1, z: 1 },
-      { x: 2, y: 1, z: 1 },
-      { x: 1, y: 0, z: 1 },
-      { x: 1, y: 2, z: 1 },
-    ]
-    for (const position of primaryPositions) cells[toIndex(position, blocks)] = CELL.primary
-    cells[toIndex({ x: 2, y: 2, z: 2 }, blocks)] = CELL.device
-    const result: StructureResult = {
-      request,
-      blocks,
-      cells,
-      primaryCount: primaryPositions.length,
-      separatorCount: cells.length - primaryPositions.length - 1,
-      deviceCount: 1,
-      solver: { status: 'feasible', lowerBound: 0, upperBound: 119, durationMs: 0 },
-    }
+    expect(meltingPositions('single', [{ x: 0, y: 0, z: 1 }])).toContainEqual(target)
+    expect(meltingPositions('single', [{ x: 0, y: 1, z: 1 }])).not.toContainEqual(target)
+  })
 
-    expect(validateStructure(result).decayPositions).not.toContainEqual(target)
+  it('does not treat a dry collector or the open exterior as a coolant', () => {
+    const melting = meltingPositions('single', [])
+    expect(melting).toContainEqual({ x: 0, y: 0, z: 0 })
+    expect(melting).toContainEqual({ x: 1, y: 2, z: 2 })
+  })
+
+  it('accepts a coolant across a boundary only when that axis repeats', () => {
+    const target = { x: 0, y: 0, z: 0 }
+    const acrossX = [{ x: 4, y: 0, z: 0 }]
+    const acrossY = [{ x: 0, y: 4, z: 0 }]
+    expect(meltingPositions('single', acrossX)).toContainEqual(target)
+    expect(meltingPositions('planar', acrossX)).not.toContainEqual(target)
+    expect(meltingPositions('planar', acrossY)).toContainEqual(target)
+    expect(meltingPositions('volumetric', acrossY)).not.toContainEqual(target)
   })
 })

@@ -4,6 +4,7 @@ import { Message } from '@arco-design/web-vue'
 import { IconCopy, IconEye, IconEyeInvisible, IconFullscreen, IconLayers, IconRefresh, IconScan } from '@arco-design/web-vue/es/icon'
 import StructurePreview from './components/StructurePreview.vue'
 import LayerPreview from './components/LayerPreview.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
 import { SCENARIOS } from './data/scenarios'
 import { ROLE_TEXTURES } from './data/visualAssets'
 import { CELL, type Axis, type ScenarioId, type StackMode, type StructureRequest, type StructureResult } from './domain/types'
@@ -118,7 +119,7 @@ function copyAllSeparatorCoordinates(): void {
       }
     }
   }
-  void copyText(coordinates.join('\n'), '隔离材料坐标已复制')
+  void copyText(coordinates.join('\n'), `${scenarioDefinition.value.separatorName}坐标已复制`)
 }
 
 async function toggleFullscreen(): Promise<void> {
@@ -139,9 +140,10 @@ async function toggleFullscreen(): Promise<void> {
           <span>AnvilCraft Stack Calculator</span>
         </div>
       </div>
-      <div class="topbar-status" aria-live="polite">
+      <div class="topbar-status">
         <span class="version-label">{{ scenarioDefinition.minecraftVersion }} / {{ scenarioDefinition.modVersion }}</span>
-        <a-tag :color="solverError ? 'red' : solving ? 'arcoblue' : result?.solver.status === 'feasible' ? 'orange' : 'green'" size="small">{{ statusText }}</a-tag>
+        <a-tag :color="solverError ? 'red' : solving ? 'arcoblue' : result?.solver.status === 'feasible' ? 'orange' : 'green'" size="small" role="status">{{ statusText }}</a-tag>
+        <ThemeToggle />
       </div>
     </header>
 
@@ -173,6 +175,10 @@ async function toggleFullscreen(): Promise<void> {
             <div><span>复制方向</span><strong>{{ replicationAxisLabel }}</strong></div>
           </div>
 
+          <p class="rule-description">
+            {{ scenarioDefinition.ruleDescription }}
+            <template v-if="scenario === 'plutonium-heat' && mode !== 'single'">实际堆叠到外缘时，若钚块依赖相邻单元冷却，请在裸露面紧贴补一块浮冰。单元统计仅含内部材料。</template>
+          </p>
           <a-button type="primary" size="large" long :loading="solving" @click="runCalculation">计算布局</a-button>
         </section>
 
@@ -210,8 +216,8 @@ async function toggleFullscreen(): Promise<void> {
         <div class="metrics-strip">
           <div><span>单元尺寸</span><strong>{{ result ? `${result.blocks.x} × ${result.blocks.y} × ${result.blocks.z}` : '—' }}</strong></div>
           <div><span>复制方向</span><strong>{{ replicationAxisLabel }}</strong></div>
-          <div><span>隔离材料占比</span><strong>{{ result ? `${separatorRatio.toFixed(2)}%` : '—' }}</strong></div>
-          <div><span>隔离材料界限</span><strong>{{ separatorBoundsText }}</strong></div>
+          <div><span>{{ scenarioDefinition.separatorName }}占比</span><strong>{{ result ? `${separatorRatio.toFixed(2)}%` : '—' }}</strong></div>
+          <div><span>{{ scenarioDefinition.separatorName }}数量界限</span><strong>{{ separatorBoundsText }}</strong></div>
         </div>
 
         <div ref="previewShell" class="preview-shell">
